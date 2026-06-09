@@ -20,6 +20,7 @@ private:
     void handlePopupClick(float mx, float my);
 
     sf::RenderWindow window;
+    bool isFullscreen;
     sf::Clock clock;
 
     Map map;

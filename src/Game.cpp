@@ -3,7 +3,8 @@
 #include <cmath>
 
 Game::Game() :
-    window(sf::VideoMode(1920, 1080), "Tower Defense", sf::Style::Fullscreen),
+    window(sf::VideoMode(1280, 720), "Tower Defense", sf::Style::Default),
+    isFullscreen(false),
     playerSpeed(300.f),
     showPopup(false),
     selectedTower(nullptr),
@@ -107,6 +108,17 @@ void Game::processEvents() {
             window.close();
 
         if (event.type == sf::Event::KeyPressed) {
+            if (event.key.code == sf::Keyboard::F11) {
+                isFullscreen = !isFullscreen;
+                if (isFullscreen) {
+                    window.create(sf::VideoMode::getDesktopMode(), "Tower Defense", sf::Style::Fullscreen);
+                } else {
+                    window.create(sf::VideoMode(1280, 720), "Tower Defense", sf::Style::Default);
+                }
+                window.setFramerateLimit(60);
+                window.setView(sf::View(sf::FloatRect(0.f, 0.f, 1280.f, 720.f)));
+            }
+
             if (event.key.code == sf::Keyboard::P) {
                 if (!pathPoints.empty()) {
                     enemies.push_back(std::make_unique<Enemy>(pathPoints[0], &enemyTexD, &enemyTexS, &enemyTexU));
