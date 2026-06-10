@@ -14,6 +14,8 @@ protected:
     float animTime;
     size_t currentTargetIndex;
     float speed;
+    int hp;
+    int maxHp;
 
 public:
     Enemy(sf::Vector2f startPos, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU);
@@ -24,6 +26,8 @@ public:
 
     bool hasReachedEnd(size_t pathSize) const;
     sf::Vector2f getPosition() const { return shape.getPosition(); }
+    void takeDamage(int damage);
+    bool isDead() const;
 };
 
 #endif

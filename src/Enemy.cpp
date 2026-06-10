@@ -1,7 +1,7 @@
 #include "Enemy.h"
 #include <cmath>
 
-Enemy::Enemy(sf::Vector2f startPos, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU) : currentTargetIndex(1), speed(150.f), texD(tD), texS(tS), texU(tU), animFrame(0), animTime(0.f) {
+Enemy::Enemy(sf::Vector2f startPos, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU) : currentTargetIndex(1), speed(150.f), texD(tD), texS(tS), texU(tU), animFrame(0), animTime(0.f), hp(25), maxHp(25) {
     if (texD) {
         shape.setTexture(*texD);
         shape.setTextureRect(sf::IntRect(0, 0, 48, 48));
@@ -54,6 +54,29 @@ void Enemy::update(float dt, const std::vector<sf::Vector2f>& pathPoints) {
 
 void Enemy::draw(sf::RenderWindow& window) const {
     window.draw(shape);
+    if (hp < maxHp) {
+        sf::RectangleShape bg(sf::Vector2f(40.f, 5.f));
+        bg.setFillColor(sf::Color::Red);
+        bg.setOrigin(20.f, 2.5f);
+        bg.setPosition(shape.getPosition().x, shape.getPosition().y - 30.f);
+        
+        sf::RectangleShape fg(sf::Vector2f(40.f * ((float)hp / maxHp), 5.f));
+        fg.setFillColor(sf::Color::Green);
+        fg.setOrigin(20.f, 2.5f);
+        fg.setPosition(shape.getPosition().x, shape.getPosition().y - 30.f);
+        
+        window.draw(bg);
+        window.draw(fg);
+    }
+}
+
+void Enemy::takeDamage(int damage) {
+    hp -= damage;
+    if (hp < 0) hp = 0;
+}
+
+bool Enemy::isDead() const {
+    return hp <= 0;
 }
 
 bool Enemy::hasReachedEnd(size_t pathSize) const {
