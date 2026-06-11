@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "Config.h"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -14,32 +15,23 @@ Game::Game()
   window.setFramerateLimit(60);
   window.setView(sf::View(sf::FloatRect(0.f, 0.f, 1280.f, 720.f)));
 
-  if (!map.loadFromFile("../../../map/level1.map")) {
-    std::cerr << "Nie udalo sie wczytac mapy z zadnej sciezki wzglednej!\n";
+  if (!map.loadFromFile("../../../assets/map/level1.map")) {
+    std::cerr << "Failed to load level1.map\n";
   }
 
-  playerTexture.loadFromFile("../../../textures/Soldier-Walk.png");
-  player.setTexture(playerTexture);
+  assets.loadAllTextures();
+  player.setTexture(assets.playerTexture);
   player.setTextureRect(sf::IntRect(0, 0, 100, 100));
   player.setOrigin(50.f, 50.f);
   player.setScale(1.3f, 1.3f);
   player.setPosition(400.f, 300.f);
   playerFrame = 0;
   playerAnimTime = 0.f;
-
-  enemyTexD.loadFromFile("../../../textures/D_Walk.png");
-  enemyTexS.loadFromFile("../../../textures/S_Walk.png");
-  enemyTexU.loadFromFile("../../../textures/U_Walk.png");
-
-  towerUnbuiltTex.loadFromFile("../../../textures/1upgrade.png");
-  towerLvl1Tex.loadFromFile("../../../textures/1idle.png");
-  towerLvl2Tex.loadFromFile("../../../textures/2idle.png");
-  towerLvl3Tex.loadFromFile("../../../textures/3idle.png");
   towerAnimTime = 0.f;
   towerAnimFrame = 0;
 
-  loadTowerConfig("../../../config/tower.config");
-  loadEnemyConfig("../../../config/enemy.config");
+  Config::loadTowerConfig("../../../config/tower.config", towerConfigs);
+  Config::loadEnemyConfig("../../../config/enemy.config", enemyConfigs);
 
   for (const auto &spot : map.getTowerSpots()) {
     towers.push_back({spot});
@@ -99,150 +91,6 @@ Game::Game()
     }
   }
 }
-void Game::loadEnemyConfig(const std::string& filepath) {
-    std::ifstream file(filepath);
-    if (!file.is_open()) {
-        std::cerr << "Failed to load enemy config: " << filepath << std::endl;
-        return;
-    }
-
-    std::string line;
-    std::string currentEnemy = "";
-    
-    while (std::getline(file, line)) {
-        if (line.empty()) continue;
-
-        size_t firstNonSpace = line.find_first_not_of(' ');
-        if (firstNonSpace == std::string::npos) continue;
-
-        if (firstNonSpace == 0) {
-            currentEnemy = line;
-            enemyConfigs[currentEnemy] = EnemyStats();
-        } else if (firstNonSpace == 2 && !currentEnemy.empty()) {
-            std::string keyVal = line.substr(2);
-            size_t spacePos = keyVal.find(' ');
-            if (spacePos != std::string::npos) {
-                std::string key = keyVal.substr(0, spacePos);
-                std::string valStr = keyVal.substr(spacePos + 1);
-                
-                if (key == "hp") enemyConfigs[currentEnemy].maxHp = std::stoi(valStr);
-                else if (key == "speed") enemyConfigs[currentEnemy].speed = std::stof(valStr);
-                else if (key == "damage_castle") enemyConfigs[currentEnemy].castleDamage = std::stoi(valStr);
-                else if (key == "damage_player") enemyConfigs[currentEnemy].playerDamage = std::stoi(valStr);
-            }
-        }
-    }
-}
-
-void Game::loadTowerConfig(const std::string &filepath) {
-  towerConfigs[TowerType::Base] = {50, 3.0f, 5, 1.0f, 100.f};
-  towerConfigs[TowerType::Sniper] = {100, 5.0f, 25, 2.5f, 250.f};
-  towerConfigs[TowerType::Multishot] = {120, 4.0f, 8, 0.8f, 120.f};
-  towerConfigs[TowerType::Multishot].baseTargets = 3;
-
-  std::ifstream file(filepath);
-  if (!file.is_open()) {
-    std::cerr << "Nie udalo sie wczytac pliku konfiguracyjnego wiez: "
-              << filepath << "\n";
-    return;
-  }
-
-  std::string rawLine;
-  TowerType currentType = TowerType::Empty;
-  std::string currentCategory = "";
-  int currentLevelIndex = -1;
-
-  while (std::getline(file, rawLine)) {
-    size_t start = rawLine.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos)
-      continue;
-    int indent = static_cast<int>(start);
-    std::string line = rawLine.substr(start);
-
-    if (line[0] == '#' || line.empty())
-      continue;
-
-    if (indent == 0) {
-      if (line.find("Tower_Base:") == 0) currentType = TowerType::Base;
-      else if (line.find("Tower_Sniper:") == 0) currentType = TowerType::Sniper;
-      else if (line.find("Tower_Multishot:") == 0) currentType = TowerType::Multishot;
-      currentCategory = "";
-      currentLevelIndex = -1;
-      continue;
-    }
-
-    if (currentType != TowerType::Empty) {
-      size_t colonPos = line.find(':');
-      if (colonPos != std::string::npos) {
-        std::string key = line.substr(0, colonPos);
-        size_t kEnd = key.find_last_not_of(" \t");
-        if (kEnd != std::string::npos) key = key.substr(0, kEnd + 1);
-
-        std::string valStr = line.substr(colonPos + 1);
-        size_t vStart = valStr.find_first_not_of(" \t");
-        if (vStart != std::string::npos) valStr = valStr.substr(vStart);
-        size_t vEnd = valStr.find_last_not_of(" \t\r\n");
-        if (vEnd != std::string::npos) valStr = valStr.substr(0, vEnd + 1);
-
-        if (indent == 2) {
-            currentCategory = "";
-            currentLevelIndex = -1;
-            if (!valStr.empty()) {
-                float val = std::stof(valStr);
-                if (key == "cost") towerConfigs[currentType].cost = static_cast<int>(val);
-                else if (key == "build_time") towerConfigs[currentType].buildTime = val;
-                else if (key == "damage") towerConfigs[currentType].damage = static_cast<int>(val);
-                else if (key == "cooldown") towerConfigs[currentType].cooldown = val;
-                else if (key == "range") towerConfigs[currentType].range = val;
-                else if (key == "targets_base") towerConfigs[currentType].baseTargets = static_cast<int>(val);
-            } else {
-                if (key == "upgrade_timed") currentCategory = "upgrade_timed";
-            }
-        } else if (indent == 4) {
-            if (valStr.empty()) {
-                if (key == "upgrade_damage") currentCategory = "upgrade_damage";
-                else if (key == "upgrade_speed") currentCategory = "upgrade_speed";
-                else if (key == "upgrade_targets") currentCategory = "upgrade_targets";
-            } else if (currentCategory == "upgrade_timed") {
-                float val = std::stof(valStr);
-                if (key == "cost") towerConfigs[currentType].timedUpgrade.cost = static_cast<int>(val);
-                else if (key == "duration") towerConfigs[currentType].timedUpgrade.duration = val;
-                else if (key == "damage_multiplier") towerConfigs[currentType].timedUpgrade.damageMultiplier = val;
-                else if (key == "cooldown_multiplier") towerConfigs[currentType].timedUpgrade.cooldownMultiplier = val;
-            }
-        } else if (indent == 6) {
-            if (key.find("level_") == 0) {
-                currentLevelIndex = std::stoi(key.substr(6)) - 1;
-                if (currentCategory == "upgrade_damage") {
-                    if (towerConfigs[currentType].damageUpgrades.size() <= currentLevelIndex)
-                        towerConfigs[currentType].damageUpgrades.resize(currentLevelIndex + 1);
-                } else if (currentCategory == "upgrade_speed") {
-                    if (towerConfigs[currentType].speedUpgrades.size() <= currentLevelIndex)
-                        towerConfigs[currentType].speedUpgrades.resize(currentLevelIndex + 1);
-                } else if (currentCategory == "upgrade_targets") {
-                    if (towerConfigs[currentType].targetUpgrades.size() <= currentLevelIndex)
-                        towerConfigs[currentType].targetUpgrades.resize(currentLevelIndex + 1);
-                }
-            }
-        } else if (indent == 8) {
-            if (!valStr.empty() && currentLevelIndex >= 0) {
-                float val = std::stof(valStr);
-                if (currentCategory == "upgrade_damage") {
-                    if (key == "cost") towerConfigs[currentType].damageUpgrades[currentLevelIndex].first = static_cast<int>(val);
-                    else if (key == "amount") towerConfigs[currentType].damageUpgrades[currentLevelIndex].second = static_cast<int>(val);
-                } else if (currentCategory == "upgrade_speed") {
-                    if (key == "cost") towerConfigs[currentType].speedUpgrades[currentLevelIndex].first = static_cast<int>(val);
-                    else if (key == "amount") towerConfigs[currentType].speedUpgrades[currentLevelIndex].second = val;
-                } else if (currentCategory == "upgrade_targets") {
-                    if (key == "cost") towerConfigs[currentType].targetUpgrades[currentLevelIndex].first = static_cast<int>(val);
-                    else if (key == "amount") towerConfigs[currentType].targetUpgrades[currentLevelIndex].second = static_cast<int>(val);
-                }
-            }
-        }
-      }
-    }
-  }
-}
 
 void Game::run() {
   while (window.isOpen()) {
@@ -282,13 +130,12 @@ void Game::processEvents() {
 
       if (debugMode) {
         if (event.key.code == sf::Keyboard::P) {
-          if (!pathPoints.empty()) {
-            EnemyStats stats;
-            if (enemyConfigs.find("Enemy_Basic") != enemyConfigs.end()) {
-                stats = enemyConfigs["Enemy_Basic"];
-            }
-            enemies.push_back(std::make_unique<Enemy>(pathPoints[0], stats, &enemyTexD,
-                                                      &enemyTexS, &enemyTexU));
+          if (!pathPoints.empty() && !enemyConfigs.empty()) {
+            auto it = enemyConfigs.begin();
+            std::advance(it, rand() % enemyConfigs.size());
+            EnemyStats stats = it->second;
+            enemies.push_back(std::make_unique<Enemy>(pathPoints[0], stats, &assets.enemyTexD,
+                                                      &assets.enemyTexS, &assets.enemyTexU));
           }
         }
 
@@ -448,6 +295,11 @@ void Game::handlePopupClick(float mx, float my) {
           }
         } else if (selectedTower->type != TowerType::Empty) {
           TowerStats stats = towerConfigs[selectedTower->type];
+          
+          int timedBtnIndex = 2;
+          if (selectedTower->type == TowerType::Base) timedBtnIndex = 4;
+          else if (selectedTower->type == TowerType::Multishot) timedBtnIndex = 3;
+
           if (i == 0) { // Speed upgrade
             if (selectedTower->speedUpgradeLevel < static_cast<int>(stats.speedUpgrades.size())) {
                 int cost = stats.speedUpgrades[selectedTower->speedUpgradeLevel].first;
@@ -501,6 +353,7 @@ void Game::handlePopupClick(float mx, float my) {
                   selectedTower->buildTimer = towerConfigs[TowerType::Multishot].buildTime;
                   selectedTower->damageUpgradeLevel = 0;
                   selectedTower->speedUpgradeLevel = 0;
+                  selectedTower->targetsUpgradeLevel = 0;
                   selectedTower->hasTimedUpgrade = false;
                   selectedTower->timedUpgradeTimer = 0.f;
                   showPopup = false;
@@ -508,10 +361,6 @@ void Game::handlePopupClick(float mx, float my) {
               }
             }
           }
-          
-          int timedBtnIndex = 2;
-          if (selectedTower->type == TowerType::Base) timedBtnIndex = 4;
-          else if (selectedTower->type == TowerType::Multishot) timedBtnIndex = 3;
 
           if (i == timedBtnIndex) {
               int cost = stats.timedUpgrade.cost;
@@ -697,33 +546,69 @@ void Game::update(float dt) {
 }
 
 void Game::render() {
-  window.clear(sf::Color::Black);
+  window.clear();
+
+  sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+  sf::Vector2f worldPos = window.mapPixelToCoords(mousePos);
+  
+  hoveredTower = nullptr;
+  if (!showPopup) {
+      for (auto &t : towers) {
+          if (t.type != TowerType::Empty) {
+              float dx = worldPos.x - t.position.x;
+              float dy = worldPos.y - t.position.y;
+              if (std::sqrt(dx * dx + dy * dy) < 35.f) {
+                  hoveredTower = &t;
+                  break;
+              }
+          }
+      }
+  }
+
   map.draw(window);
 
   for (const auto &t : towers) {
     sf::Sprite towerSprite;
     int fw = 70, fh = 130;
+    
     if (t.type == TowerType::Empty) {
-      towerSprite.setTexture(towerUnbuiltTex);
+      towerSprite.setTexture(assets.towerUpgradeTexs[0]);
       towerSprite.setTextureRect(sf::IntRect(0, 0, fw, fh));
-    } else if (t.type == TowerType::Base) {
-      towerSprite.setTexture(towerLvl1Tex);
-      towerSprite.setTextureRect(sf::IntRect(0, 0, fw, fh));
-    } else if (t.type == TowerType::Sniper) {
-      towerSprite.setTexture(towerLvl2Tex);
-      towerSprite.setTextureRect(sf::IntRect(towerAnimFrame * fw, 0, fw, fh));
-    } else if (t.type == TowerType::Multishot) {
-      towerSprite.setTexture(towerLvl3Tex);
-      towerSprite.setTextureRect(sf::IntRect(towerAnimFrame * fw, 0, fw, fh));
+    } else {
+      sf::Texture* activeTex = nullptr;
+      int frameIndex = 0;
+
+      if (t.type == TowerType::Base) {
+          activeTex = &assets.towerUpgradeTexs[3]; // 4upgrade.png
+          bool isMax = (t.speedUpgradeLevel >= 3 && t.damageUpgradeLevel >= 3);
+          bool isLvl2 = (!isMax && t.speedUpgradeLevel + t.damageUpgradeLevel >= 4);
+          bool isLvl1 = (!isMax && !isLvl2 && t.speedUpgradeLevel + t.damageUpgradeLevel >= 2);
+          if (isMax) frameIndex = 3;
+          else if (isLvl2) frameIndex = 2;
+          else if (isLvl1) frameIndex = 1;
+          else frameIndex = 0;
+      } else if (t.type == TowerType::Sniper) {
+          bool isUpgraded = (t.speedUpgradeLevel > 0 || t.damageUpgradeLevel > 0);
+          if (isUpgraded) {
+              activeTex = &assets.towerUpgradeTexs[6]; // 7upgrade.png
+              frameIndex = 3; // Ostatnia forma z 7upgrade
+          } else {
+              activeTex = &assets.towerUpgradeTexs[4]; // 5upgrade.png
+              frameIndex = 0; 
+          }
+      } else if (t.type == TowerType::Multishot) {
+          activeTex = &assets.towerUpgradeTexs[5]; // 6upgrade.png
+          bool isUpgraded = (t.speedUpgradeLevel > 0 || t.damageUpgradeLevel > 0 || t.targetsUpgradeLevel > 0);
+          if (isUpgraded) frameIndex = 3; // Ostatnia tekstura z pliku 6upgrade.png
+          else frameIndex = 0; // Pierwsza tekstura
+      }
+
+      towerSprite.setTexture(*activeTex);
+      towerSprite.setTextureRect(sf::IntRect(frameIndex * fw, 0, fw, fh));
     }
+    
     towerSprite.setOrigin(fw / 2.f, fh / 2.f + 15.f);
     towerSprite.setPosition(t.position);
-
-    // Add visual indicator for building
-    if (t.state == TowerState::Building || t.state == TowerState::Upgrading) {
-      towerSprite.setColor(
-          sf::Color(100, 100, 100, 200)); // Darken while building
-    }
 
     window.draw(towerSprite);
 
@@ -981,6 +866,46 @@ void Game::render() {
           window.draw(levelTexts[i]);
       }
     }
+  }
+
+  if (hoveredTower && !showPopup && hasFont) {
+      TowerStats stats = towerConfigs[hoveredTower->type];
+      int currentDamage = stats.damage;
+      if (hoveredTower->damageUpgradeLevel > 0 && hoveredTower->damageUpgradeLevel <= static_cast<int>(stats.damageUpgrades.size())) {
+          currentDamage = stats.damageUpgrades[hoveredTower->damageUpgradeLevel - 1].second;
+      }
+      float currentReload = stats.cooldown;
+      if (hoveredTower->speedUpgradeLevel > 0 && hoveredTower->speedUpgradeLevel <= static_cast<int>(stats.speedUpgrades.size())) {
+          currentReload = stats.speedUpgrades[hoveredTower->speedUpgradeLevel - 1].second;
+      }
+      
+      std::string tName = "WIEZA";
+      if (hoveredTower->type == TowerType::Base) tName = "Podstawowa";
+      else if (hoveredTower->type == TowerType::Sniper) tName = "Snajper";
+      else if (hoveredTower->type == TowerType::Multishot) tName = "Wielostrzal";
+      
+      std::string hoverStr = tName + "\nObrazenia: " + std::to_string(currentDamage) + "\nPrzeladowanie: " + std::to_string(currentReload).substr(0, 4) + "s";
+      
+      sf::Text hoverText(hoverStr, font, 14);
+      hoverText.setFillColor(sf::Color::White);
+      sf::FloatRect textBounds = hoverText.getLocalBounds();
+      
+      sf::RectangleShape hoverBg(sf::Vector2f(textBounds.width + 10.f, textBounds.height + 10.f));
+      hoverBg.setFillColor(sf::Color(0, 0, 0, 200));
+      hoverBg.setOutlineThickness(1.f);
+      hoverBg.setOutlineColor(sf::Color::White);
+      
+      float tooltipX = worldPos.x + 15.f;
+      float tooltipY = worldPos.y + 15.f;
+      
+      if (tooltipX + hoverBg.getSize().x > 1280.f) tooltipX = worldPos.x - hoverBg.getSize().x - 15.f;
+      if (tooltipY + hoverBg.getSize().y > 720.f) tooltipY = worldPos.y - hoverBg.getSize().y - 15.f;
+      
+      hoverBg.setPosition(tooltipX, tooltipY);
+      hoverText.setPosition(tooltipX + 5.f, tooltipY + 5.f);
+      
+      window.draw(hoverBg);
+      window.draw(hoverText);
   }
 
   window.display();

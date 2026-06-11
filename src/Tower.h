@@ -55,6 +55,8 @@ struct Tower {
 
     bool hasTimedUpgrade = false;
     float timedUpgradeTimer = 0.f;
+
+    mutable int currentTexLevel = 0;
 };
 
 #endif

@@ -11,6 +11,12 @@ private:
     std::vector<sf::Vector2f> towerSpots;
     std::vector<sf::Vector2f> bridgeSpots;
     std::vector<sf::Vector2f> storeSpots;
+    std::vector<std::string> grid;
+    
+    
+    sf::Texture bgTexture;
+    sf::Sprite bgSprite;
+    bool hasBg;
     float tileSize;
 
 public:

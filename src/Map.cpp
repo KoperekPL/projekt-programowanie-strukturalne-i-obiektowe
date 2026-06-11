@@ -5,7 +5,7 @@
 #include <set>
 #include <utility>
 
-Map::Map(float tSize) : tileSize(tSize) {}
+Map::Map(float tSize) : tileSize(tSize), hasBg(false) {}
 
 bool Map::loadFromFile(const std::string& filename) {
     std::ifstream file(filename);
@@ -14,11 +14,18 @@ bool Map::loadFromFile(const std::string& filename) {
         return false;
     }
 
-    std::vector<std::string> grid;
+    if (bgTexture.loadFromFile("../../../assets/textures/mapa.png")) {
+        bgSprite.setTexture(bgTexture);
+        hasBg = true;
+    } else {
+        std::cerr << "Nie udalo sie zaladowac tła: ../../../assets/textures/mapa.png\n";
+    }
+
+    this->grid.clear();
     std::string line;
     while (std::getline(file, line)) {
         if (!line.empty()) {
-            grid.push_back(line);
+            this->grid.push_back(line);
         }
     }
     file.close();
@@ -94,82 +101,39 @@ bool Map::loadFromFile(const std::string& filename) {
 }
 
 void Map::draw(sf::RenderWindow& window) const {
-    for (const auto& spot : bridgeSpots) {
-        sf::RectangleShape bridge(sf::Vector2f(tileSize, tileSize));
-        bridge.setOrigin(tileSize / 2.f, tileSize / 2.f);
-        bridge.setPosition(spot);
-        bridge.setFillColor(sf::Color(139, 69, 19));
-        window.draw(bridge);
-    }
+    sf::RectangleShape bg(sf::Vector2f(1280.f, 720.f));
+    bg.setFillColor(sf::Color(34, 139, 34));
+    window.draw(bg);
+
+    if (!hasBg) return;
+
+    int ts = static_cast<int>(tileSize);
+    sf::IntRect pathRect(200, 200, ts, ts);
+    float pathThickness = tileSize * 3.0f;
 
     for (size_t i = 0; i < pathPoints.size(); ++i) {
-        bool isP1Bridge = false;
-        for (const auto& b : bridgeSpots) {
-            if (std::abs(b.x - pathPoints[i].x) < 1.f && std::abs(b.y - pathPoints[i].y) < 1.f) {
-                isP1Bridge = true;
-                break;
-            }
-        }
-
         if (i < pathPoints.size() - 1) {
             sf::Vector2f p1 = pathPoints[i];
             sf::Vector2f p2 = pathPoints[i+1];
             
-            bool isP2Bridge = false;
-            for (const auto& b : bridgeSpots) {
-                if (std::abs(b.x - p2.x) < 1.f && std::abs(b.y - p2.y) < 1.f) {
-                    isP2Bridge = true;
-                    break;
-                }
-            }
-
             sf::Vector2f dir = p2 - p1;
             float length = std::sqrt(dir.x * dir.x + dir.y * dir.y);
-            sf::RectangleShape line(sf::Vector2f(length, tileSize));
-            line.setOrigin(0, tileSize / 2.f);
+            sf::RectangleShape line(sf::Vector2f(length, pathThickness));
+            line.setOrigin(0, pathThickness / 2.f);
             line.setPosition(p1);
-            
-            if (isP1Bridge || isP2Bridge) {
-                line.setFillColor(sf::Color(160, 82, 45));
-            } else {
-                line.setFillColor(sf::Color::White);
-            }
+            line.setTexture(&bgTexture);
+            line.setTextureRect(pathRect);
             
             float angle = std::atan2(dir.y, dir.x) * 180.f / 3.14159265f;
             line.setRotation(angle);
             window.draw(line);
         }
         
-        sf::CircleShape joint(tileSize / 2.f);
-        joint.setOrigin(tileSize / 2.f, tileSize / 2.f);
-        
-        if (isP1Bridge) {
-            joint.setFillColor(sf::Color(160, 82, 45));
-        } else {
-            joint.setFillColor(sf::Color::White);
-        }
-        
+        sf::CircleShape joint(pathThickness / 2.f);
+        joint.setOrigin(pathThickness / 2.f, pathThickness / 2.f);
+        joint.setTexture(&bgTexture);
+        joint.setTextureRect(pathRect);
         joint.setPosition(pathPoints[i]);
         window.draw(joint);
-    }
-
-    for (const auto& spot : towerSpots) {
-        sf::RectangleShape towerBase(sf::Vector2f(tileSize - 4.f, tileSize - 4.f));
-        towerBase.setOrigin((tileSize - 4.f) / 2.f, (tileSize - 4.f) / 2.f);
-        towerBase.setPosition(spot);
-        towerBase.setFillColor(sf::Color(100, 100, 100));
-        towerBase.setOutlineThickness(2.f);
-        towerBase.setOutlineColor(sf::Color(150, 150, 150));
-        window.draw(towerBase);
-    }
-
-    for (const auto& spot : storeSpots) {
-        sf::RectangleShape storeBase(sf::Vector2f(tileSize * 3.f, tileSize * 3.f));
-        storeBase.setOrigin(tileSize * 1.5f, tileSize * 1.5f);
-        storeBase.setPosition(spot);
-        storeBase.setFillColor(sf::Color::Yellow);
-        storeBase.setOutlineThickness(3.f);
-        storeBase.setOutlineColor(sf::Color(218, 165, 32));
-        window.draw(storeBase);
     }
 }

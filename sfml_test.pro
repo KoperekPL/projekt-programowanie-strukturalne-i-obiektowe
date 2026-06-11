@@ -7,14 +7,18 @@ SOURCES += \
     src/mainwindow.cpp \
     src/Enemy.cpp \
     src/Map.cpp \
-    src/Game.cpp
+    src/Game.cpp \
+    src/Config.cpp \
+    src/AssetManager.cpp
 
 HEADERS += \
     src/mainwindow.h \
     src/Enemy.h \
     src/Map.h \
     src/Game.h \
-    src/Tower.h
+    src/Tower.h \
+    src/Config.h \
+    src/AssetManager.h
 
 FORMS += \
     mainwindow.ui
