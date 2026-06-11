@@ -17,21 +17,29 @@ enum class TowerState {
     Upgrading
 };
 
+struct TimedUpgradeStats {
+    int cost = 0;
+    float duration = 0.f;
+    float damageMultiplier = 1.f;
+    float cooldownMultiplier = 1.f;
+};
+
 struct TowerStats {
     int cost = 0;
     float buildTime = 0.f;
     int damage = 0;
     float cooldown = 0.f;
     float range = 0.f;
-    int upgDamageCost = 30;
-    int upgDamageAmount = 2;
-    int upgSpeedCost = 25;
-    float upgSpeedAmount = 0.1f;
+
+    std::vector<std::pair<int, int>> damageUpgrades;
+    std::vector<std::pair<int, float>> speedUpgrades;
     
-    // Ulepszenia ilosci celow dla Multishot
+    // Dla Multishot
     int baseTargets = 1;
     // <Koszt, Ilosc celow>
     std::vector<std::pair<int, int>> targetUpgrades;
+
+    TimedUpgradeStats timedUpgrade;
 };
 
 struct Tower {
@@ -44,6 +52,9 @@ struct Tower {
     int damageUpgradeLevel = 0;
     int speedUpgradeLevel = 0;
     int targetsUpgradeLevel = 0;
+
+    bool hasTimedUpgrade = false;
+    float timedUpgradeTimer = 0.f;
 };
 
 #endif

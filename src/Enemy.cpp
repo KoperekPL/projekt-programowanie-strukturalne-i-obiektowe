@@ -1,7 +1,7 @@
 #include "Enemy.h"
 #include <cmath>
 
-Enemy::Enemy(sf::Vector2f startPos, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU) : currentTargetIndex(1), speed(150.f), texD(tD), texS(tS), texU(tU), animFrame(0), animTime(0.f), hp(25), maxHp(25) {
+Enemy::Enemy(sf::Vector2f startPos, const EnemyStats& stats, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU) : currentTargetIndex(1), speed(stats.speed), texD(tD), texS(tS), texU(tU), animFrame(0), animTime(0.f), hp(stats.maxHp), maxHp(stats.maxHp), castleDamage(stats.castleDamage), playerDamage(stats.playerDamage) {
     if (texD) {
         shape.setTexture(*texD);
         shape.setTextureRect(sf::IntRect(0, 0, 48, 48));

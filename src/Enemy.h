@@ -4,6 +4,13 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 
+struct EnemyStats {
+    int maxHp = 25;
+    float speed = 150.f;
+    int castleDamage = 5;
+    int playerDamage = 1;
+};
+
 class Enemy {
 protected:
     sf::Sprite shape;
@@ -16,9 +23,11 @@ protected:
     float speed;
     int hp;
     int maxHp;
+    int castleDamage;
+    int playerDamage;
 
 public:
-    Enemy(sf::Vector2f startPos, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU);
+    Enemy(sf::Vector2f startPos, const EnemyStats& stats, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU);
     virtual ~Enemy() = default;
 
     virtual void update(float dt, const std::vector<sf::Vector2f>& pathPoints);
@@ -28,6 +37,10 @@ public:
     sf::Vector2f getPosition() const { return shape.getPosition(); }
     void takeDamage(int damage);
     bool isDead() const;
+    
+    int getCastleDamage() const { return castleDamage; }
+    int getPlayerDamage() const { return playerDamage; }
+    void die() { hp = 0; }
 };
 
 #endif

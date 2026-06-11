@@ -9,8 +9,8 @@
 Game::Game()
     : window(sf::VideoMode(1280, 720), "Tower Defense", sf::Style::Default),
       isFullscreen(false), playerSpeed(300.f), showPopup(false),
-      selectedTower(nullptr), levelBtns(4), levelTexts(4), money(500),
-      debugMode(false) {
+      selectedTower(nullptr), levelBtns(5), levelTexts(5), money(500),
+      debugMode(false), baseHp(100), maxBaseHp(100), playerHp(50), maxPlayerHp(50) {
   window.setFramerateLimit(60);
   window.setView(sf::View(sf::FloatRect(0.f, 0.f, 1280.f, 720.f)));
 
@@ -35,10 +35,19 @@ Game::Game()
   towerLvl1Tex.loadFromFile("../../../textures/1idle.png");
   towerLvl2Tex.loadFromFile("../../../textures/2idle.png");
   towerLvl3Tex.loadFromFile("../../../textures/3idle.png");
+  towerSniperLvl1Tex.loadFromFile("../../../textures/4upgrade.png");
+  towerSniperLvlMaxTex.loadFromFile("../../../textures/7upgrade.png");
+  towerMultishotLvl1Tex.loadFromFile("../../../textures/5upgrade.png");
+  towerMultishotLvlMaxTex.loadFromFile("../../../textures/6upgrade.png");
+  towerSniperLvl1IdleTex.loadFromFile("../../../textures/4idle.png");
+  towerSniperLvlMaxIdleTex.loadFromFile("../../../textures/7idle.png");
+  towerMultishotLvl1IdleTex.loadFromFile("../../../textures/5idle.png");
+  towerMultishotLvlMaxIdleTex.loadFromFile("../../../textures/6idle.png");
   towerAnimTime = 0.f;
   towerAnimFrame = 0;
 
   loadTowerConfig("../../../config/tower.config");
+  loadEnemyConfig("../../../config/enemy.config");
 
   for (const auto &spot : map.getTowerSpots()) {
     towers.push_back({spot});
@@ -80,12 +89,12 @@ Game::Game()
     moneyText.setPosition(20.f, 20.f);
   }
 
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 5; ++i) {
     levelBtns[i].setSize(sf::Vector2f(40.f, 40.f));
     levelBtns[i].setFillColor(sf::Color(100, 100, 100));
     levelBtns[i].setOutlineThickness(2.f);
     levelBtns[i].setOutlineColor(sf::Color::White);
-    levelBtns[i].setPosition(530.f + i * 60.f, 470.f);
+    levelBtns[i].setPosition(500.f + i * 60.f, 470.f);
 
     if (hasFont) {
       levelTexts[i].setFont(font);
@@ -94,18 +103,50 @@ Game::Game()
       levelTexts[i].setFillColor(sf::Color::White);
       sf::FloatRect b = levelTexts[i].getLocalBounds();
       levelTexts[i].setOrigin(b.width / 2.f, b.height / 2.f);
-      levelTexts[i].setPosition(550.f + i * 60.f, 485.f);
+      levelTexts[i].setPosition(520.f + i * 60.f, 485.f);
     }
   }
 }
+void Game::loadEnemyConfig(const std::string& filepath) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Failed to load enemy config: " << filepath << std::endl;
+        return;
+    }
+
+    std::string line;
+    std::string currentEnemy = "";
+    
+    while (std::getline(file, line)) {
+        if (line.empty()) continue;
+
+        size_t firstNonSpace = line.find_first_not_of(' ');
+        if (firstNonSpace == std::string::npos) continue;
+
+        if (firstNonSpace == 0) {
+            currentEnemy = line;
+            enemyConfigs[currentEnemy] = EnemyStats();
+        } else if (firstNonSpace == 2 && !currentEnemy.empty()) {
+            std::string keyVal = line.substr(2);
+            size_t spacePos = keyVal.find(' ');
+            if (spacePos != std::string::npos) {
+                std::string key = keyVal.substr(0, spacePos);
+                std::string valStr = keyVal.substr(spacePos + 1);
+                
+                if (key == "hp") enemyConfigs[currentEnemy].maxHp = std::stoi(valStr);
+                else if (key == "speed") enemyConfigs[currentEnemy].speed = std::stof(valStr);
+                else if (key == "damage_castle") enemyConfigs[currentEnemy].castleDamage = std::stoi(valStr);
+                else if (key == "damage_player") enemyConfigs[currentEnemy].playerDamage = std::stoi(valStr);
+            }
+        }
+    }
+}
 
 void Game::loadTowerConfig(const std::string &filepath) {
-  // defaults
-  towerConfigs[TowerType::Base] = {50, 3.0f, 5, 1.0f, 100.f, 30, 2, 25, 0.1f};
-  towerConfigs[TowerType::Sniper] = {100, 5.0f, 25, 2.5f, 250.f,
-                                     50,  5,    50, 0.2f};
-  towerConfigs[TowerType::Multishot] = {120, 4.0f, 8,  0.8f, 120.f,
-                                        40,  3,    30, 0.05f};
+  towerConfigs[TowerType::Base] = {50, 3.0f, 5, 1.0f, 100.f};
+  towerConfigs[TowerType::Sniper] = {100, 5.0f, 25, 2.5f, 250.f};
+  towerConfigs[TowerType::Multishot] = {120, 4.0f, 8, 0.8f, 120.f};
+  towerConfigs[TowerType::Multishot].baseTargets = 3;
 
   std::ifstream file(filepath);
   if (!file.is_open()) {
@@ -114,27 +155,27 @@ void Game::loadTowerConfig(const std::string &filepath) {
     return;
   }
 
-  std::string line;
+  std::string rawLine;
   TowerType currentType = TowerType::Empty;
-  while (std::getline(file, line)) {
-    size_t start = line.find_first_not_of(" \t\r\n");
+  std::string currentCategory = "";
+  int currentLevelIndex = -1;
+
+  while (std::getline(file, rawLine)) {
+    size_t start = rawLine.find_first_not_of(" \t\r\n");
     if (start == std::string::npos)
       continue;
-    line = line.substr(start);
+    int indent = static_cast<int>(start);
+    std::string line = rawLine.substr(start);
 
     if (line[0] == '#' || line.empty())
       continue;
 
-    if (line.find("Tower_Base:") != std::string::npos) {
-      currentType = TowerType::Base;
-      continue;
-    }
-    if (line.find("Tower_Sniper:") != std::string::npos) {
-      currentType = TowerType::Sniper;
-      continue;
-    }
-    if (line.find("Tower_Multishot:") != std::string::npos) {
-      currentType = TowerType::Multishot;
+    if (indent == 0) {
+      if (line.find("Tower_Base:") == 0) currentType = TowerType::Base;
+      else if (line.find("Tower_Sniper:") == 0) currentType = TowerType::Sniper;
+      else if (line.find("Tower_Multishot:") == 0) currentType = TowerType::Multishot;
+      currentCategory = "";
+      currentLevelIndex = -1;
       continue;
     }
 
@@ -142,60 +183,69 @@ void Game::loadTowerConfig(const std::string &filepath) {
       size_t colonPos = line.find(':');
       if (colonPos != std::string::npos) {
         std::string key = line.substr(0, colonPos);
-        std::string valStr = line.substr(colonPos + 1);
         size_t kEnd = key.find_last_not_of(" \t");
-        if (kEnd != std::string::npos)
-          key = key.substr(0, kEnd + 1);
-        size_t vStart = valStr.find_first_not_of(" \t");
-        if (vStart != std::string::npos) {
-          valStr = valStr.substr(vStart);
-          size_t vEnd = valStr.find_last_not_of(" \t\r\n");
-          if (vEnd != std::string::npos)
-            valStr = valStr.substr(0, vEnd + 1);
+        if (kEnd != std::string::npos) key = key.substr(0, kEnd + 1);
 
-          float val = std::stof(valStr);
-          if (key == "cost")
-            towerConfigs[currentType].cost = static_cast<int>(val);
-          else if (key == "build_time")
-            towerConfigs[currentType].buildTime = val;
-          else if (key == "damage")
-            towerConfigs[currentType].damage = static_cast<int>(val);
-          else if (key == "cooldown")
-            towerConfigs[currentType].cooldown = val;
-          else if (key == "range")
-            towerConfigs[currentType].range = val;
-          else if (key == "upgrade_damage_cost")
-            towerConfigs[currentType].upgDamageCost = static_cast<int>(val);
-          else if (key == "upgrade_damage_amount")
-            towerConfigs[currentType].upgDamageAmount = static_cast<int>(val);
-          else if (key == "upgrade_speed_cost")
-            towerConfigs[currentType].upgSpeedCost = static_cast<int>(val);
-          else if (key == "upgrade_speed_amount")
-            towerConfigs[currentType].upgSpeedAmount = val;
-          else if (key == "targets_base")
-            towerConfigs[currentType].baseTargets = static_cast<int>(val);
-          else if (key.find("targets_upg_cost_") == 0) {
-            try {
-              int idx = std::stoi(key.substr(17)) - 1;
-              if (idx >= 0) {
-                  if (towerConfigs[currentType].targetUpgrades.size() <= idx) {
-                      towerConfigs[currentType].targetUpgrades.resize(idx + 1, {0, 0});
-                  }
-                  towerConfigs[currentType].targetUpgrades[idx].first = static_cast<int>(val);
-              }
-            } catch (...) {}
-          }
-          else if (key.find("targets_upg_val_") == 0) {
-            try {
-              int idx = std::stoi(key.substr(16)) - 1;
-              if (idx >= 0) {
-                  if (towerConfigs[currentType].targetUpgrades.size() <= idx) {
-                      towerConfigs[currentType].targetUpgrades.resize(idx + 1, {0, 0});
-                  }
-                  towerConfigs[currentType].targetUpgrades[idx].second = static_cast<int>(val);
-              }
-            } catch (...) {}
-          }
+        std::string valStr = line.substr(colonPos + 1);
+        size_t vStart = valStr.find_first_not_of(" \t");
+        if (vStart != std::string::npos) valStr = valStr.substr(vStart);
+        size_t vEnd = valStr.find_last_not_of(" \t\r\n");
+        if (vEnd != std::string::npos) valStr = valStr.substr(0, vEnd + 1);
+
+        if (indent == 2) {
+            currentCategory = "";
+            currentLevelIndex = -1;
+            if (!valStr.empty()) {
+                float val = std::stof(valStr);
+                if (key == "cost") towerConfigs[currentType].cost = static_cast<int>(val);
+                else if (key == "build_time") towerConfigs[currentType].buildTime = val;
+                else if (key == "damage") towerConfigs[currentType].damage = static_cast<int>(val);
+                else if (key == "cooldown") towerConfigs[currentType].cooldown = val;
+                else if (key == "range") towerConfigs[currentType].range = val;
+                else if (key == "targets_base") towerConfigs[currentType].baseTargets = static_cast<int>(val);
+            } else {
+                if (key == "upgrade_timed") currentCategory = "upgrade_timed";
+            }
+        } else if (indent == 4) {
+            if (valStr.empty()) {
+                if (key == "upgrade_damage") currentCategory = "upgrade_damage";
+                else if (key == "upgrade_speed") currentCategory = "upgrade_speed";
+                else if (key == "upgrade_targets") currentCategory = "upgrade_targets";
+            } else if (currentCategory == "upgrade_timed") {
+                float val = std::stof(valStr);
+                if (key == "cost") towerConfigs[currentType].timedUpgrade.cost = static_cast<int>(val);
+                else if (key == "duration") towerConfigs[currentType].timedUpgrade.duration = val;
+                else if (key == "damage_multiplier") towerConfigs[currentType].timedUpgrade.damageMultiplier = val;
+                else if (key == "cooldown_multiplier") towerConfigs[currentType].timedUpgrade.cooldownMultiplier = val;
+            }
+        } else if (indent == 6) {
+            if (key.find("level_") == 0) {
+                currentLevelIndex = std::stoi(key.substr(6)) - 1;
+                if (currentCategory == "upgrade_damage") {
+                    if (towerConfigs[currentType].damageUpgrades.size() <= currentLevelIndex)
+                        towerConfigs[currentType].damageUpgrades.resize(currentLevelIndex + 1);
+                } else if (currentCategory == "upgrade_speed") {
+                    if (towerConfigs[currentType].speedUpgrades.size() <= currentLevelIndex)
+                        towerConfigs[currentType].speedUpgrades.resize(currentLevelIndex + 1);
+                } else if (currentCategory == "upgrade_targets") {
+                    if (towerConfigs[currentType].targetUpgrades.size() <= currentLevelIndex)
+                        towerConfigs[currentType].targetUpgrades.resize(currentLevelIndex + 1);
+                }
+            }
+        } else if (indent == 8) {
+            if (!valStr.empty() && currentLevelIndex >= 0) {
+                float val = std::stof(valStr);
+                if (currentCategory == "upgrade_damage") {
+                    if (key == "cost") towerConfigs[currentType].damageUpgrades[currentLevelIndex].first = static_cast<int>(val);
+                    else if (key == "amount") towerConfigs[currentType].damageUpgrades[currentLevelIndex].second = static_cast<int>(val);
+                } else if (currentCategory == "upgrade_speed") {
+                    if (key == "cost") towerConfigs[currentType].speedUpgrades[currentLevelIndex].first = static_cast<int>(val);
+                    else if (key == "amount") towerConfigs[currentType].speedUpgrades[currentLevelIndex].second = val;
+                } else if (currentCategory == "upgrade_targets") {
+                    if (key == "cost") towerConfigs[currentType].targetUpgrades[currentLevelIndex].first = static_cast<int>(val);
+                    else if (key == "amount") towerConfigs[currentType].targetUpgrades[currentLevelIndex].second = static_cast<int>(val);
+                }
+            }
         }
       }
     }
@@ -241,7 +291,11 @@ void Game::processEvents() {
       if (debugMode) {
         if (event.key.code == sf::Keyboard::P) {
           if (!pathPoints.empty()) {
-            enemies.push_back(std::make_unique<Enemy>(pathPoints[0], &enemyTexD,
+            EnemyStats stats;
+            if (enemyConfigs.find("Enemy_Basic") != enemyConfigs.end()) {
+                stats = enemyConfigs["Enemy_Basic"];
+            }
+            enemies.push_back(std::make_unique<Enemy>(pathPoints[0], stats, &enemyTexD,
                                                       &enemyTexS, &enemyTexU));
           }
         }
@@ -277,11 +331,14 @@ void Game::processEvents() {
                             "$)";
               } else {
                 TowerStats stats = towerConfigs[t.type];
-                int currDmg = stats.damage +
-                              (t.damageUpgradeLevel * stats.upgDamageAmount);
-                float currSpd =
-                    std::max(0.1f, stats.cooldown - (t.speedUpgradeLevel *
-                                                     stats.upgSpeedAmount));
+                int currDmg = stats.damage;
+                for (int i = 0; i < t.damageUpgradeLevel && i < static_cast<int>(stats.damageUpgrades.size()); ++i)
+                    currDmg += stats.damageUpgrades[i].second;
+                
+                float currSpd = stats.cooldown;
+                for (int i = 0; i < t.speedUpgradeLevel && i < static_cast<int>(stats.speedUpgrades.size()); ++i)
+                    currSpd -= stats.speedUpgrades[i].second;
+                currSpd = std::max(0.1f, currSpd);
 
                 std::string typeName =
                     (t.type == TowerType::Base)
@@ -295,37 +352,56 @@ void Game::processEvents() {
                 std::string extraStats = "";
                 if (t.type == TowerType::Multishot) {
                     int maxTgt = stats.baseTargets;
-                    if (t.targetsUpgradeLevel > 0 && t.targetsUpgradeLevel <= stats.targetUpgrades.size()) {
+                    if (t.targetsUpgradeLevel > 0 && t.targetsUpgradeLevel <= static_cast<int>(stats.targetUpgrades.size())) {
                         maxTgt = stats.targetUpgrades[t.targetsUpgradeLevel - 1].second;
                     }
                     extraStats = " | Cele: " + std::to_string(maxTgt);
                 }
 
-                popupText =
-                    "WIEZA " + typeName + "\nObr: " + std::to_string(currDmg) +
-                    " | Przelad: " + std::string(buf) + extraStats + "\n" +
-                    "0 - Szybkosc (-" +
-                    std::to_string(stats.upgSpeedAmount).substr(0, 4) +
-                    "s za " + std::to_string(stats.upgSpeedCost) + "$)\n" +
-                    "1 - Obrazenia (+" + std::to_string(stats.upgDamageAmount) +
-                    " za " + std::to_string(stats.upgDamageCost) + "$)";
+                std::string speedUpgText = "MAX";
+                if (t.speedUpgradeLevel < static_cast<int>(stats.speedUpgrades.size())) {
+                    auto upg = stats.speedUpgrades[t.speedUpgradeLevel];
+                    char buf2[64];
+                    snprintf(buf2, sizeof(buf2), "%.2f", upg.second);
+                    speedUpgText = "-" + std::string(buf2) + "s za " + std::to_string(upg.first) + "$";
+                }
 
+                std::string dmgUpgText = "MAX";
+                if (t.damageUpgradeLevel < static_cast<int>(stats.damageUpgrades.size())) {
+                    auto upg = stats.damageUpgrades[t.damageUpgradeLevel];
+                    dmgUpgText = "+" + std::to_string(upg.second) + " za " + std::to_string(upg.first) + "$";
+                }
+
+                popupText =
+                    "WIEZA " + typeName + (t.hasTimedUpgrade ? " (BOOST)" : "") + "\nObr: " + std::to_string(currDmg) +
+                    " | Przelad: " + std::string(buf) + extraStats + "\n" +
+                    "0 - Szybkosc (" + speedUpgText + ")\n" +
+                    "1 - Obrazenia (" + dmgUpgText + ")";
+
+                int nextBtnIndex = 2;
                 if (t.type == TowerType::Base) {
-                  popupText +=
-                      "\n2 - Ewolucja Snajper (" +
-                      std::to_string(towerConfigs[TowerType::Sniper].cost) +
-                      "$)\n" + "3 - Ewolucja Multishot (" +
-                      std::to_string(towerConfigs[TowerType::Multishot].cost) +
-                      "$)";
+                  bool isMaxUpgraded = (t.speedUpgradeLevel >= static_cast<int>(stats.speedUpgrades.size())) &&
+                                       (t.damageUpgradeLevel >= static_cast<int>(stats.damageUpgrades.size()));
+                  if (isMaxUpgraded) {
+                    popupText += "\n2 - Ewolucja Snajper (" + std::to_string(towerConfigs[TowerType::Sniper].cost) + "$)\n" + 
+                                 "3 - Ewolucja Multishot (" + std::to_string(towerConfigs[TowerType::Multishot].cost) + "$)";
+                  } else {
+                    popupText += "\n2 - Ewolucja Snajper (Wymagany MAX)\n" 
+                                 "3 - Ewolucja Multishot (Wymagany MAX)";
+                  }
+                  nextBtnIndex = 4;
                 } else if (t.type == TowerType::Multishot) {
-                    if (t.targetsUpgradeLevel < stats.targetUpgrades.size()) {
+                    if (t.targetsUpgradeLevel < static_cast<int>(stats.targetUpgrades.size())) {
                         int cost = stats.targetUpgrades[t.targetsUpgradeLevel].first;
                         int nextTgt = stats.targetUpgrades[t.targetsUpgradeLevel].second;
                         popupText += "\n2 - Dodatkowy cel (Celow: " + std::to_string(nextTgt) + " za " + std::to_string(cost) + "$)";
                     } else {
                         popupText += "\n2 - Dodatkowy cel (MAX)";
                     }
+                    nextBtnIndex = 3;
                 }
+
+                popupText += "\n" + std::to_string(nextBtnIndex) + " - Ulepszenie Czasowe (" + std::to_string(stats.timedUpgrade.cost) + "$)";
               }
             }
             break;
@@ -366,8 +442,8 @@ void Game::handlePopupClick(float mx, float my) {
     showPopup = false;
   }
   if (selectedTower && selectedTower->state == TowerState::Idle) {
-    for (int i = 0; i < 4; ++i) {
-      if (mx >= 530.f + i * 60.f && mx <= 570.f + i * 60.f && my >= 470.f &&
+    for (int i = 0; i < 5; ++i) {
+      if (mx >= 500.f + i * 60.f && mx <= 540.f + i * 60.f && my >= 470.f &&
           my <= 510.f) {
         if (selectedTower->type == TowerType::Empty && i == 0) {
           int cost = towerConfigs[TowerType::Base].cost;
@@ -381,21 +457,25 @@ void Game::handlePopupClick(float mx, float my) {
         } else if (selectedTower->type != TowerType::Empty) {
           TowerStats stats = towerConfigs[selectedTower->type];
           if (i == 0) { // Speed upgrade
-            int cost = stats.upgSpeedCost;
-            if (money >= cost) {
-              money -= cost;
-              selectedTower->speedUpgradeLevel++;
-              showPopup = false;
+            if (selectedTower->speedUpgradeLevel < static_cast<int>(stats.speedUpgrades.size())) {
+                int cost = stats.speedUpgrades[selectedTower->speedUpgradeLevel].first;
+                if (money >= cost) {
+                  money -= cost;
+                  selectedTower->speedUpgradeLevel++;
+                  showPopup = false;
+                }
             }
           } else if (i == 1) { // Damage upgrade
-            int cost = stats.upgDamageCost;
-            if (money >= cost) {
-              money -= cost;
-              selectedTower->damageUpgradeLevel++;
-              showPopup = false;
+            if (selectedTower->damageUpgradeLevel < static_cast<int>(stats.damageUpgrades.size())) {
+                int cost = stats.damageUpgrades[selectedTower->damageUpgradeLevel].first;
+                if (money >= cost) {
+                  money -= cost;
+                  selectedTower->damageUpgradeLevel++;
+                  showPopup = false;
+                }
             }
           } else if (selectedTower->type == TowerType::Multishot && i == 2) {
-              if (selectedTower->targetsUpgradeLevel < stats.targetUpgrades.size()) {
+              if (selectedTower->targetsUpgradeLevel < static_cast<int>(stats.targetUpgrades.size())) {
                   int cost = stats.targetUpgrades[selectedTower->targetsUpgradeLevel].first;
                   if (money >= cost) {
                       money -= cost;
@@ -404,32 +484,51 @@ void Game::handlePopupClick(float mx, float my) {
                   }
               }
           } else if (selectedTower->type == TowerType::Base) {
-            if (i == 2) { // Sniper
-              int cost = towerConfigs[TowerType::Sniper].cost;
-              if (money >= cost) {
-                money -= cost;
-                selectedTower->type = TowerType::Sniper;
-                selectedTower->state = TowerState::Upgrading;
-                selectedTower->buildTimer =
-                    towerConfigs[TowerType::Sniper].buildTime;
-                selectedTower->damageUpgradeLevel =
-                    0; // reset upgrades on evolution
-                selectedTower->speedUpgradeLevel = 0;
-                showPopup = false;
-              }
-            } else if (i == 3) { // Multishot
-              int cost = towerConfigs[TowerType::Multishot].cost;
-              if (money >= cost) {
-                money -= cost;
-                selectedTower->type = TowerType::Multishot;
-                selectedTower->state = TowerState::Upgrading;
-                selectedTower->buildTimer =
-                    towerConfigs[TowerType::Multishot].buildTime;
-                selectedTower->damageUpgradeLevel = 0;
-                selectedTower->speedUpgradeLevel = 0;
-                showPopup = false;
+            bool isMaxUpgraded = (selectedTower->speedUpgradeLevel >= static_cast<int>(stats.speedUpgrades.size())) &&
+                                 (selectedTower->damageUpgradeLevel >= static_cast<int>(stats.damageUpgrades.size()));
+            if (isMaxUpgraded) {
+              if (i == 2) { // Sniper
+                int cost = towerConfigs[TowerType::Sniper].cost;
+                if (money >= cost) {
+                  money -= cost;
+                  selectedTower->type = TowerType::Sniper;
+                  selectedTower->state = TowerState::Upgrading;
+                  selectedTower->buildTimer = towerConfigs[TowerType::Sniper].buildTime;
+                  selectedTower->damageUpgradeLevel = 0;
+                  selectedTower->speedUpgradeLevel = 0;
+                  selectedTower->hasTimedUpgrade = false;
+                  selectedTower->timedUpgradeTimer = 0.f;
+                  showPopup = false;
+                }
+              } else if (i == 3) { // Multishot
+                int cost = towerConfigs[TowerType::Multishot].cost;
+                if (money >= cost) {
+                  money -= cost;
+                  selectedTower->type = TowerType::Multishot;
+                  selectedTower->state = TowerState::Upgrading;
+                  selectedTower->buildTimer = towerConfigs[TowerType::Multishot].buildTime;
+                  selectedTower->damageUpgradeLevel = 0;
+                  selectedTower->speedUpgradeLevel = 0;
+                  selectedTower->hasTimedUpgrade = false;
+                  selectedTower->timedUpgradeTimer = 0.f;
+                  showPopup = false;
+                }
               }
             }
+          }
+          
+          int timedBtnIndex = 2;
+          if (selectedTower->type == TowerType::Base) timedBtnIndex = 4;
+          else if (selectedTower->type == TowerType::Multishot) timedBtnIndex = 3;
+
+          if (i == timedBtnIndex) {
+              int cost = stats.timedUpgrade.cost;
+              if (money >= cost) {
+                  money -= cost;
+                  selectedTower->hasTimedUpgrade = true;
+                  selectedTower->timedUpgradeTimer = stats.timedUpgrade.duration;
+                  showPopup = false;
+              }
           }
         }
       }
@@ -488,10 +587,17 @@ void Game::update(float dt) {
   towerAnimTime += dt;
   if (towerAnimTime >= 0.15f) {
     towerAnimTime = 0.f;
-    towerAnimFrame = (towerAnimFrame + 1) % 4;
+    towerAnimFrame = (towerAnimFrame + 1) % 6;
   }
 
   for (auto &t : towers) {
+    if (t.hasTimedUpgrade) {
+      t.timedUpgradeTimer -= dt;
+      if (t.timedUpgradeTimer <= 0.f) {
+        t.hasTimedUpgrade = false;
+      }
+    }
+
     if (t.state == TowerState::Building || t.state == TowerState::Upgrading) {
       t.buildTimer -= dt;
       if (t.buildTimer <= 0.f) {
@@ -502,11 +608,23 @@ void Game::update(float dt) {
       if (t.cooldownTimer <= 0.f) {
         TowerStats stats = towerConfigs[t.type];
         float range = stats.range;
-        int damage =
-            stats.damage + (t.damageUpgradeLevel * stats.upgDamageAmount);
-        float maxCooldown =
-            std::max(0.1f, stats.cooldown -
-                               (t.speedUpgradeLevel * stats.upgSpeedAmount));
+        
+        int damage = stats.damage;
+        for (int i = 0; i < t.damageUpgradeLevel && i < static_cast<int>(stats.damageUpgrades.size()); ++i) {
+            damage += stats.damageUpgrades[i].second;
+        }
+
+        float cooldown = stats.cooldown;
+        for (int i = 0; i < t.speedUpgradeLevel && i < static_cast<int>(stats.speedUpgrades.size()); ++i) {
+            cooldown -= stats.speedUpgrades[i].second;
+        }
+        float maxCooldown = std::max(0.1f, cooldown);
+
+        if (t.hasTimedUpgrade) {
+            damage = static_cast<int>(damage * stats.timedUpgrade.damageMultiplier);
+            maxCooldown *= stats.timedUpgrade.cooldownMultiplier;
+            maxCooldown = std::max(0.01f, maxCooldown);
+        }
 
         if (t.type == TowerType::Base || t.type == TowerType::Sniper) {
           for (auto &enemy : enemies) {
@@ -557,8 +675,26 @@ void Game::update(float dt) {
 
   for (auto it = enemies.begin(); it != enemies.end();) {
     (*it)->update(dt, pathPoints);
+    
+    sf::Vector2f ePos = (*it)->getPosition();
+    sf::Vector2f pPos = player.getPosition();
+    float dx = ePos.x - pPos.x;
+    float dy = ePos.y - pPos.y;
+    float dist = std::sqrt(dx * dx + dy * dy);
+    bool hitPlayer = false;
+    
+    if (dist < 40.f && !(*it)->isDead()) {
+        playerHp -= (*it)->getPlayerDamage();
+        if (playerHp < 0) playerHp = 0;
+        (*it)->die();
+        hitPlayer = true;
+    }
+
     if ((*it)->hasReachedEnd(pathPoints.size()) || (*it)->isDead()) {
-      if ((*it)->isDead()) {
+      if ((*it)->hasReachedEnd(pathPoints.size())) {
+        baseHp -= (*it)->getCastleDamage();
+        if (baseHp < 0) baseHp = 0;
+      } else if (!hitPlayer) {
         money += 10;
       }
       it = enemies.erase(it);
@@ -582,11 +718,58 @@ void Game::render() {
       towerSprite.setTexture(towerLvl1Tex);
       towerSprite.setTextureRect(sf::IntRect(0, 0, fw, fh));
     } else if (t.type == TowerType::Sniper) {
-      towerSprite.setTexture(towerLvl2Tex);
-      towerSprite.setTextureRect(sf::IntRect(towerAnimFrame * fw, 0, fw, fh));
+      bool isMax = (t.speedUpgradeLevel >= 3 && t.damageUpgradeLevel >= 3);
+      bool isLvl1 = (!isMax && t.speedUpgradeLevel >= 1 && t.damageUpgradeLevel >= 1);
+      if (t.state == TowerState::Building || t.state == TowerState::Upgrading) {
+        // podczas budowania: statyczny kadr z upgrade.png
+        if (isMax) {
+          towerSprite.setTexture(towerSniperLvlMaxTex);
+        } else if (isLvl1) {
+          towerSprite.setTexture(towerSniperLvl1Tex);
+        } else {
+          towerSprite.setTexture(towerLvl2Tex);
+        }
+        towerSprite.setTextureRect(sf::IntRect(3 * fw, 0, fw, fh));
+      } else {
+        // po zbudowaniu: animacja idle
+        if (isMax) {
+          towerSprite.setTexture(towerSniperLvlMaxIdleTex);
+          towerSprite.setTextureRect(sf::IntRect((towerAnimFrame % 6) * fw, 0, fw, fh));
+        } else if (isLvl1) {
+          towerSprite.setTexture(towerSniperLvl1IdleTex);
+          towerSprite.setTextureRect(sf::IntRect((towerAnimFrame % 6) * fw, 0, fw, fh));
+        } else {
+          towerSprite.setTexture(towerLvl2Tex);
+          towerSprite.setTextureRect(sf::IntRect((towerAnimFrame % 4) * fw, 0, fw, fh));
+        }
+      }
     } else if (t.type == TowerType::Multishot) {
-      towerSprite.setTexture(towerLvl3Tex);
-      towerSprite.setTextureRect(sf::IntRect(towerAnimFrame * fw, 0, fw, fh));
+      int maxTargets = (int)towerConfigs[TowerType::Multishot].targetUpgrades.size();
+      bool isMax = (t.speedUpgradeLevel >= 3 && t.damageUpgradeLevel >= 3 && t.targetsUpgradeLevel >= maxTargets);
+      bool isLvl1 = (!isMax && t.speedUpgradeLevel >= 1 && t.damageUpgradeLevel >= 1 && t.targetsUpgradeLevel >= 1);
+      if (t.state == TowerState::Building || t.state == TowerState::Upgrading) {
+        // podczas budowania: statyczny kadr z upgrade.png
+        if (isMax) {
+          towerSprite.setTexture(towerMultishotLvlMaxTex);
+        } else if (isLvl1) {
+          towerSprite.setTexture(towerMultishotLvl1Tex);
+        } else {
+          towerSprite.setTexture(towerLvl3Tex);
+        }
+        towerSprite.setTextureRect(sf::IntRect(3 * fw, 0, fw, fh));
+      } else {
+        // po zbudowaniu: animacja idle
+        if (isMax) {
+          towerSprite.setTexture(towerMultishotLvlMaxIdleTex);
+          towerSprite.setTextureRect(sf::IntRect((towerAnimFrame % 6) * fw, 0, fw, fh));
+        } else if (isLvl1) {
+          towerSprite.setTexture(towerMultishotLvl1IdleTex);
+          towerSprite.setTextureRect(sf::IntRect((towerAnimFrame % 6) * fw, 0, fw, fh));
+        } else {
+          towerSprite.setTexture(towerLvl3Tex);
+          towerSprite.setTextureRect(sf::IntRect((towerAnimFrame % 4) * fw, 0, fw, fh));
+        }
+      }
     }
     towerSprite.setOrigin(fw / 2.f, fh / 2.f + 15.f);
     towerSprite.setPosition(t.position);
@@ -625,6 +808,52 @@ void Game::render() {
 
       window.draw(bgBar);
       window.draw(fgBar);
+    }
+
+    if (t.type != TowerType::Empty && t.state == TowerState::Idle) {
+      // Draw damage upgrade indicators (red squares/dots)
+      for (int i = 0; i < t.damageUpgradeLevel; ++i) {
+        sf::RectangleShape dmgDot(sf::Vector2f(6.f, 6.f));
+        dmgDot.setFillColor(sf::Color::Red);
+        dmgDot.setOutlineThickness(1.f);
+        dmgDot.setOutlineColor(sf::Color::Black);
+        dmgDot.setOrigin(3.f, 3.f);
+        dmgDot.setPosition(t.position.x - 20.f + i * 8.f, t.position.y + 30.f);
+        window.draw(dmgDot);
+      }
+      
+      // Draw speed upgrade indicators (cyan squares/dots)
+      for (int i = 0; i < t.speedUpgradeLevel; ++i) {
+        sf::RectangleShape spdDot(sf::Vector2f(6.f, 6.f));
+        spdDot.setFillColor(sf::Color::Cyan);
+        spdDot.setOutlineThickness(1.f);
+        spdDot.setOutlineColor(sf::Color::Black);
+        spdDot.setOrigin(3.f, 3.f);
+        spdDot.setPosition(t.position.x + 5.f + i * 8.f, t.position.y + 30.f);
+        window.draw(spdDot);
+      }
+      
+      // Draw timed upgrade bar (yellow progress bar)
+      if (t.hasTimedUpgrade) {
+        float maxTimer = towerConfigs[t.type].timedUpgrade.duration;
+        float progress = t.timedUpgradeTimer / maxTimer;
+        if (progress < 0.f) progress = 0.f;
+
+        sf::RectangleShape bgBar(sf::Vector2f(40.f, 4.f));
+        bgBar.setFillColor(sf::Color(50, 50, 50));
+        bgBar.setOutlineThickness(1.f);
+        bgBar.setOutlineColor(sf::Color::Black);
+        bgBar.setOrigin(20.f, 2.f);
+        bgBar.setPosition(t.position.x, t.position.y - 55.f);
+
+        sf::RectangleShape fgBar(sf::Vector2f(40.f * progress, 4.f));
+        fgBar.setFillColor(sf::Color::Yellow);
+        fgBar.setOrigin(20.f, 2.f);
+        fgBar.setPosition(t.position.x, t.position.y - 55.f);
+
+        window.draw(bgBar);
+        window.draw(fgBar);
+      }
     }
 
     if (t.type != TowerType::Empty && t.state == TowerState::Idle) {
@@ -685,6 +914,40 @@ void Game::render() {
   }
   window.draw(player);
 
+  if (playerHp < maxPlayerHp) {
+      sf::RectangleShape pBg(sf::Vector2f(40.f, 5.f));
+      pBg.setFillColor(sf::Color::Red);
+      pBg.setOrigin(20.f, 2.5f);
+      pBg.setPosition(player.getPosition().x, player.getPosition().y - 45.f);
+
+      float pProg = static_cast<float>(playerHp) / maxPlayerHp;
+      if (pProg < 0) pProg = 0;
+      sf::RectangleShape pFg(sf::Vector2f(40.f * pProg, 5.f));
+      pFg.setFillColor(sf::Color::Green);
+      pFg.setOrigin(20.f, 2.5f);
+      pFg.setPosition(player.getPosition().x, player.getPosition().y - 45.f);
+
+      window.draw(pBg);
+      window.draw(pFg);
+  }
+
+  sf::RectangleShape bBg(sf::Vector2f(400.f, 20.f));
+  bBg.setFillColor(sf::Color(100, 0, 0));
+  bBg.setOutlineThickness(2.f);
+  bBg.setOutlineColor(sf::Color::White);
+  bBg.setOrigin(200.f, 0.f);
+  bBg.setPosition(1280.f / 2.f, 10.f);
+
+  float bProg = static_cast<float>(baseHp) / maxBaseHp;
+  if (bProg < 0) bProg = 0;
+  sf::RectangleShape bFg(sf::Vector2f(400.f * bProg, 20.f));
+  bFg.setFillColor(sf::Color::Green);
+  bFg.setOrigin(200.f, 0.f);
+  bFg.setPosition(1280.f / 2.f, 10.f);
+
+  window.draw(bBg);
+  window.draw(bFg);
+
   if (hasFont) {
     moneyText.setString("Pieniadze: " + std::to_string(money));
     window.draw(moneyText);
@@ -705,15 +968,15 @@ void Game::render() {
       } else if (selectedTower->type == TowerType::Empty) {
         numBtns = 1; // 0: Build Base
       } else if (selectedTower->type == TowerType::Base) {
-        numBtns = 4; // 0: Speed, 1: Dmg, 2: Sniper, 3: Multishot
+        numBtns = 5; // 0: Speed, 1: Dmg, 2: Sniper, 3: Multishot, 4: Timed
       } else if (selectedTower->type == TowerType::Multishot) {
-        numBtns = 3; // 0: Speed, 1: Dmg, 2: Targets
+        numBtns = 4; // 0: Speed, 1: Dmg, 2: Targets, 3: Timed
       } else {
-        numBtns = 2; // 0: Speed, 1: Damage
+        numBtns = 3; // 0: Speed, 1: Damage, 2: Timed
       }
 
       for (int i = 0; i < numBtns; ++i) {
-        if (i >= 4)
+        if (i >= 5)
           continue;
 
         int cost = 0;
@@ -722,21 +985,41 @@ void Game::render() {
           cost = towerConfigs[TowerType::Base].cost;
         else if (selectedTower->type != TowerType::Empty) {
           TowerStats stats = towerConfigs[selectedTower->type];
-          if (i == 0)
-            cost = stats.upgSpeedCost;
-          else if (i == 1)
-            cost = stats.upgDamageCost;
-          else if (selectedTower->type == TowerType::Base) {
-            if (i == 2)
+          
+          int timedBtnIndex = 2;
+          if (selectedTower->type == TowerType::Base) timedBtnIndex = 4;
+          else if (selectedTower->type == TowerType::Multishot) timedBtnIndex = 3;
+
+          if (i == 0) {
+              if (selectedTower->speedUpgradeLevel < static_cast<int>(stats.speedUpgrades.size()))
+                  cost = stats.speedUpgrades[selectedTower->speedUpgradeLevel].first;
+              else
+                  isMax = true;
+          } else if (i == 1) {
+              if (selectedTower->damageUpgradeLevel < static_cast<int>(stats.damageUpgrades.size()))
+                  cost = stats.damageUpgrades[selectedTower->damageUpgradeLevel].first;
+              else
+                  isMax = true;
+          } else if (selectedTower->type == TowerType::Base) {
+            bool isMaxUpgraded = (selectedTower->speedUpgradeLevel >= static_cast<int>(stats.speedUpgrades.size())) &&
+                                 (selectedTower->damageUpgradeLevel >= static_cast<int>(stats.damageUpgrades.size()));
+            if (i == 2) {
               cost = towerConfigs[TowerType::Sniper].cost;
-            if (i == 3)
+              if (!isMaxUpgraded) cost = 9999999;
+            } else if (i == 3) {
               cost = towerConfigs[TowerType::Multishot].cost;
+              if (!isMaxUpgraded) cost = 9999999;
+            }
           } else if (selectedTower->type == TowerType::Multishot && i == 2) {
-            if (selectedTower->targetsUpgradeLevel < stats.targetUpgrades.size()) {
+            if (selectedTower->targetsUpgradeLevel < static_cast<int>(stats.targetUpgrades.size())) {
                 cost = stats.targetUpgrades[selectedTower->targetsUpgradeLevel].first;
             } else {
                 isMax = true;
             }
+          }
+          
+          if (i == timedBtnIndex) {
+              cost = stats.timedUpgrade.cost;
           }
         }
 

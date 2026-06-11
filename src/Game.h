@@ -38,6 +38,16 @@ private:
     sf::Texture towerLvl1Tex;
     sf::Texture towerLvl2Tex;
     sf::Texture towerLvl3Tex;
+    // upgrade-screen textures (static, shown during build indicator)
+    sf::Texture towerSniperLvl1Tex;
+    sf::Texture towerSniperLvlMaxTex;
+    sf::Texture towerMultishotLvl1Tex;
+    sf::Texture towerMultishotLvlMaxTex;
+    // idle animation textures for built upgraded towers
+    sf::Texture towerSniperLvl1IdleTex;
+    sf::Texture towerSniperLvlMaxIdleTex;
+    sf::Texture towerMultishotLvl1IdleTex;
+    sf::Texture towerMultishotLvlMaxIdleTex;
     float towerAnimTime;
     int towerAnimFrame;
     sf::Texture enemyTexD;
@@ -65,6 +75,14 @@ private:
 
     int money;
     bool debugMode;
+    
+    int baseHp;
+    int maxBaseHp;
+    int playerHp;
+    int maxPlayerHp;
+
+    std::map<std::string, EnemyStats> enemyConfigs;
+    void loadEnemyConfig(const std::string& filepath);
 };
 
 #endif
