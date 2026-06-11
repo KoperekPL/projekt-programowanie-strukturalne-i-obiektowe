@@ -65,6 +65,14 @@ private:
 
     int money;
     bool debugMode;
+    
+    int baseHp;
+    int maxBaseHp;
+    int playerHp;
+    int maxPlayerHp;
+
+    std::map<std::string, EnemyStats> enemyConfigs;
+    void loadEnemyConfig(const std::string& filepath);
 };
 
 #endif
