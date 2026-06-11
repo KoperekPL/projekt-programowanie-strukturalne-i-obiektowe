@@ -156,21 +156,33 @@ void Map::draw(sf::RenderWindow& window) const {
 
     for (int y = 0; y < rows; ++y) {
         for (int x = 0; x < (int)grid[y].size(); ++x) {
-            char cell = grid[y][x];
-            bool isPath = (cell == '#' || cell == 'S' || cell == 'E' || cell == 'M');
-
             sf::Sprite tile;
-            if (isPath) {
-                tile.setTexture(texPath);
-            } else {
-                tile.setTexture(texGrass);
-            }
-
-            sf::Vector2u texSize = isPath ? texPath.getSize() : texGrass.getSize();
+            tile.setTexture(texGrass);
+            sf::Vector2u texSize = texGrass.getSize();
             float sx = ts / (float)texSize.x;
             float sy = ts / (float)texSize.y;
             tile.setScale(sx, sy);
             tile.setPosition(x * ts, y * ts);
+            window.draw(tile);
+        }
+    }
+
+    float pathScaleMultiplier = 1.45f;
+    for (int y = 0; y < rows; ++y) {
+        for (int x = 0; x < (int)grid[y].size(); ++x) {
+            char cell = grid[y][x];
+            bool isPath = (cell == '#' || cell == 'S' || cell == 'E' || cell == 'M');
+            if (!isPath) continue;
+
+            sf::Sprite tile;
+            tile.setTexture(texPath);
+            sf::Vector2u texSize = texPath.getSize();
+            tile.setOrigin(texSize.x / 2.f, texSize.y / 2.f);
+
+            float sx = (ts * pathScaleMultiplier) / (float)texSize.x;
+            float sy = (ts * pathScaleMultiplier) / (float)texSize.y;
+            tile.setScale(sx, sy);
+            tile.setPosition(x * ts + ts / 2.f, y * ts + ts / 2.f);
             window.draw(tile);
         }
     }
