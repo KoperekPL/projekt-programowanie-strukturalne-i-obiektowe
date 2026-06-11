@@ -8,6 +8,7 @@
 #include "Map.h"
 #include "Enemy.h"
 #include "Tower.h"
+#include "AssetManager.h"
 
 class Game {
 public:
@@ -19,46 +20,30 @@ private:
     void update(float dt);
     void render();
     void handlePopupClick(float mx, float my);
-    void loadTowerConfig(const std::string& filepath);
 
     sf::RenderWindow window;
     bool isFullscreen;
     sf::Clock clock;
-
     Map map;
+    
     sf::Sprite player;
-    sf::Texture playerTexture;
     int playerFrame;
     float playerAnimTime;
     float playerSpeed;
 
     std::vector<std::unique_ptr<Enemy>> enemies;
     std::vector<Tower> towers;
-    sf::Texture towerUnbuiltTex;
-    sf::Texture towerLvl1Tex;
-    sf::Texture towerLvl2Tex;
-    sf::Texture towerLvl3Tex;
-    // upgrade-screen textures (static, shown during build indicator)
-    sf::Texture towerSniperLvl1Tex;
-    sf::Texture towerSniperLvlMaxTex;
-    sf::Texture towerMultishotLvl1Tex;
-    sf::Texture towerMultishotLvlMaxTex;
-    // idle animation textures for built upgraded towers
-    sf::Texture towerSniperLvl1IdleTex;
-    sf::Texture towerSniperLvlMaxIdleTex;
-    sf::Texture towerMultishotLvl1IdleTex;
-    sf::Texture towerMultishotLvlMaxIdleTex;
+    
+    AssetManager assets;
     float towerAnimTime;
     int towerAnimFrame;
-    sf::Texture enemyTexD;
-    sf::Texture enemyTexS;
-    sf::Texture enemyTexU;
 
     std::map<TowerType, TowerStats> towerConfigs;
 
     bool showPopup;
     std::string popupText;
     Tower* selectedTower;
+    Tower* hoveredTower;
 
     sf::RectangleShape popupBg;
     sf::RectangleShape closeBtn;
@@ -82,7 +67,6 @@ private:
     int maxPlayerHp;
 
     std::map<std::string, EnemyStats> enemyConfigs;
-    void loadEnemyConfig(const std::string& filepath);
 };
 
 #endif
