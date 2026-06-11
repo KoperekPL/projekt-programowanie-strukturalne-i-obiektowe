@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <memory>
+#include <map>
 #include "Map.h"
 #include "Enemy.h"
 #include "Tower.h"
@@ -18,8 +19,10 @@ private:
     void update(float dt);
     void render();
     void handlePopupClick(float mx, float my);
+    void loadTowerConfig(const std::string& filepath);
 
     sf::RenderWindow window;
+    bool isFullscreen;
     sf::Clock clock;
 
     Map map;
@@ -41,6 +44,8 @@ private:
     sf::Texture enemyTexS;
     sf::Texture enemyTexU;
 
+    std::map<TowerType, TowerStats> towerConfigs;
+
     bool showPopup;
     std::string popupText;
     Tower* selectedTower;
@@ -53,9 +58,13 @@ private:
     sf::Font font;
     bool hasFont;
     sf::Text text;
+    sf::Text moneyText;
 
     std::vector<sf::RectangleShape> levelBtns;
     std::vector<sf::Text> levelTexts;
+
+    int money;
+    bool debugMode;
 };
 
 #endif
