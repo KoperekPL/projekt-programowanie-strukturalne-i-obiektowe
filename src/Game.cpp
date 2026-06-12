@@ -179,10 +179,9 @@ void Game::run() {
 }
 
 void Game::processEvents() {
-  sf::Event event;
-  const auto &pathPoints = map.getPathPoints();
+    sf::Event event;
 
-  while (window.pollEvent(event)) {
+    while (window.pollEvent(event)) {
     if (event.type == sf::Event::Closed)
       window.close();
 
@@ -211,28 +210,29 @@ void Game::processEvents() {
       }
 
       if (debugMode) {
-        if (event.key.code == sf::Keyboard::P) {
-          if (!pathPoints.empty() && !enemyConfigs.empty()) {
-            auto it = enemyConfigs.begin();
-            std::advance(it, rand() % enemyConfigs.size());
-            EnemyStats stats = it->second;
-            const std::string& ename = it->first;
-            const sf::Texture* tD = &assets.enemyTexD;
-            const sf::Texture* tS = &assets.enemyTexS;
-            const sf::Texture* tU = &assets.enemyTexU;
-            if (ename == "Enemy_Wolf") {
-                tD = &assets.wolfTexD;
-                tS = &assets.wolfTexS;
-                tU = &assets.wolfTexU;
-            } else if (ename == "Enemy_Ogre") {
-                tD = &assets.ogreTexD;
-                tS = &assets.ogreTexS;
-                tU = &assets.ogreTexU;
-            }
-            auto enemy = std::make_shared<Enemy>(pathPoints[0], stats, tD, tS, tU, &pathPoints);
-            gameObjects.push_back(enemy);
+          if (event.key.code == sf::Keyboard::P) {
+              if (!map.getPathA().empty() && !enemyConfigs.empty()) {
+                  auto it = enemyConfigs.begin();
+                  std::advance(it, rand() % enemyConfigs.size());
+                  EnemyStats stats = it->second;
+                  const std::string& ename = it->first;
+                  const sf::Texture* tD = &assets.enemyTexD;
+                  const sf::Texture* tS = &assets.enemyTexS;
+                  const sf::Texture* tU = &assets.enemyTexU;
+                  if (ename == "Enemy_Wolf") {
+                      tD = &assets.wolfTexD;
+                      tS = &assets.wolfTexS;
+                      tU = &assets.wolfTexU;
+                  } else if (ename == "Enemy_Ogre") {
+                      tD = &assets.ogreTexD;
+                      tS = &assets.ogreTexS;
+                      tU = &assets.ogreTexU;
+                  }
+                  const auto& chosenPath = map.getRandomPath();
+                  auto enemy = std::make_shared<Enemy>(chosenPath[0], stats, tD, tS, tU, &chosenPath);
+                  gameObjects.push_back(enemy);
+              }
           }
-        }
 
         if (event.key.code == sf::Keyboard::O) {
           for (auto &obj : gameObjects) {
@@ -611,9 +611,7 @@ void Game::update(float dt) {
     player.setPosition(pos);
   }
 
-  const auto &pathPoints = map.getPathPoints();
-
-  waveManager.update(dt, gameObjects, enemyConfigs, pathPoints, assets);
+  waveManager.update(dt, gameObjects, enemyConfigs, map, assets);
   
   autoSaveTimer += realDt;
   if (autoSaveTimer >= 300.f) {

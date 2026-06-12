@@ -8,6 +8,7 @@
 #include <memory>
 #include "GameObject.h"
 #include "AssetManager.h"
+#include "Map.h"
 
 class WaveManager {
 public:
@@ -22,7 +23,7 @@ public:
     float waveCooldown = 10.f;
 
     void startWave(int wave);
-    void update(float dt, std::vector<std::shared_ptr<GameObject>>& objects, const std::map<std::string, EnemyStats>& configs, const std::vector<sf::Vector2f>& path, AssetManager& assets);
+    void update(float dt, std::vector<std::shared_ptr<GameObject>>& objects, const std::map<std::string, EnemyStats>& configs, const Map& map, AssetManager& assets);
 };
 
 #endif

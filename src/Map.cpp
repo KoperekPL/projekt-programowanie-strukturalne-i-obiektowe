@@ -4,6 +4,7 @@
 #include <cmath>
 #include <set>
 #include <utility>
+#include <vector>
 
 Map::Map(float tSize) : tileSize(tSize), hasBg(false) {}
 
@@ -46,6 +47,7 @@ bool Map::loadFromFile(const std::string& filename) {
     towerSpots.clear();
     bridgeSpots.clear();
     storeSpots.clear();
+    healerSpots.clear();
 
     for (int y = 0; y < rows; ++y) {
         for (int x = 0; x < (int)grid[y].size(); ++x) {
@@ -64,41 +66,152 @@ bool Map::loadFromFile(const std::string& filename) {
         }
     }
 
-    pathPoints.clear();
+    pathPointsA.clear();
+    pathPointsB.clear();
+
     if (startPos.x == -1) {
         std::cerr << "Brak punktu startowego 'S' na mapie!\n";
         return false;
     }
 
-    sf::Vector2i current = startPos;
-    std::set<std::pair<int,int>> visited;
+    // --- Helpers ---
+    auto toWorld = [&](sf::Vector2i c) -> sf::Vector2f {
+        return sf::Vector2f(c.x * tileSize + tileSize / 2.f, c.y * tileSize + tileSize / 2.f);
+    };
 
-    while (true) {
-        visited.insert({current.x, current.y});
-        pathPoints.push_back({current.x * tileSize + tileSize / 2.f,
-                               current.y * tileSize + tileSize / 2.f});
+    auto isPathCell = [&](int x, int y) -> bool {
+        if (x < 0 || x >= cols || y < 0 || y >= rows) return false;
+        char c = grid[y][x];
+        return (c == '#' || c == 'E' || c == 'M' || c == 'S' || c == 'D');
+    };
 
-        if (grid[current.y][current.x] == 'E') break;
-
-        sf::Vector2i nextStep(-1, -1);
+    auto findNext = [&](sf::Vector2i cur, const std::set<std::pair<int,int>>& vis) -> std::vector<sf::Vector2i> {
+        std::vector<sf::Vector2i> res;
         sf::Vector2i dirs[4] = {{0,-1},{0,1},{-1,0},{1,0}};
-        for (const auto& dir : dirs) {
-            int nx = current.x + dir.x;
-            int ny = current.y + dir.y;
+        for (auto& d : dirs) {
+            int nx = cur.x + d.x;
+            int ny = cur.y + d.y;
             if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-                if (visited.find({nx, ny}) == visited.end()) {
-                    char c = grid[ny][nx];
-                    if (c == '#' || c == 'E' || c == 'M') {
-                        nextStep = {nx, ny};
-                        break;
-                    }
+                if (!vis.count({nx, ny}) && isPathCell(nx, ny)) {
+                    res.push_back({nx, ny});
                 }
             }
         }
-        if (nextStep.x != -1) current = nextStep;
-        else break;
-    }
+        return res;
+    };
 
+    // Sprawdza, czy idąc od 'start' (bez powrotu do komórek z 'blocked')
+    // można dojść do 'E'
+    auto canReachE = [&](sf::Vector2i start, std::set<std::pair<int,int>> blocked) -> bool {
+        if (blocked.count({start.x, start.y})) return false;
+        std::vector<sf::Vector2i> stack = {start};
+        std::set<std::pair<int,int>> localVis = blocked;
+        while (!stack.empty()) {
+            sf::Vector2i c = stack.back();
+            stack.pop_back();
+            if (localVis.count({c.x, c.y})) continue;
+            localVis.insert({c.x, c.y});
+            if (grid[c.y][c.x] == 'E') return true;
+            for (auto& n : findNext(c, localVis)) stack.push_back(n);
+        }
+        return false;
+    };
+
+    // Sprawdza, czy idąc od 'start' do E (bez powrotu do 'blocked') trasa przechodzi przez 'D'
+    auto pathContainsD = [&](sf::Vector2i start, std::set<std::pair<int,int>> blocked) -> bool {
+        if (blocked.count({start.x, start.y})) return false;
+        std::vector<sf::Vector2i> stack = {start};
+        std::set<std::pair<int,int>> localVis = blocked;
+        while (!stack.empty()) {
+            sf::Vector2i c = stack.back();
+            stack.pop_back();
+            if (localVis.count({c.x, c.y})) continue;
+            localVis.insert({c.x, c.y});
+            if (grid[c.y][c.x] == 'D') return true;
+            if (grid[c.y][c.x] == 'E') continue; // E bez D na tej trasie - nie liczy się
+            for (auto& n : findNext(c, localVis)) stack.push_back(n);
+        }
+        return false;
+    };
+
+    // --- Build path (with optional single fork) ---
+    auto buildPath = [&](int forkChoice) -> std::vector<sf::Vector2f> {
+        std::vector<sf::Vector2i> result;
+        std::set<std::pair<int,int>> vis;
+        sf::Vector2i c = startPos;
+        bool usedFork = false;
+
+        while (true) {
+            vis.insert({c.x, c.y});
+            result.push_back(c);
+
+            if (grid[c.y][c.x] == 'E') break;
+
+            auto nxt = findNext(c, vis);
+            if (nxt.empty()) break;
+
+            // Jeśli stoimy na 'D', musimy iść do kolejnego 'D' (jeśli istnieje wśród sąsiadów)
+            if (grid[c.y][c.x] == 'D') {
+                bool foundD = false;
+                for (auto& n : nxt) {
+                    if (grid[n.y][n.x] == 'D') {
+                        c = n;
+                        foundD = true;
+                        break;
+                    }
+                }
+                if (foundD) continue;
+            }
+
+            if (!usedFork && nxt.size() >= 2) {
+                // Filtrujemy tylko te sąsiady, z których realnie da się dojść do E
+                std::vector<sf::Vector2i> viable;
+                for (auto& n : nxt) {
+                    if (canReachE(n, vis)) viable.push_back(n);
+                }
+
+                if (viable.size() >= 2) {
+                    // Jeśli dokładnie jedna z gałęzi prowadzi przez D, wymuszamy ją
+                    // (nie losujemy na tym forku - obie wersje muszą przejść przez D)
+                    std::vector<int> dBranches;
+                    for (size_t i = 0; i < viable.size(); ++i) {
+                        if (pathContainsD(viable[i], vis)) dBranches.push_back((int)i);
+                    }
+
+                    if (dBranches.size() == 1) {
+                        c = viable[dBranches[0]];
+                        // usedFork zostaje false - kolejne forki dalej mogą losować
+                        continue;
+                    }
+
+                    // Prawdziwy fork (żadna gałąź nie wymusza D, albo obie prowadzą przez D)
+                    usedFork = true;
+                    size_t idx = (size_t)forkChoice < viable.size() ? (size_t)forkChoice : viable.size() - 1;
+                    c = viable[idx];
+                    continue;
+                }
+                // jeśli tylko jedna gałąź jest "żywa", idziemy nią (to nie był prawdziwy fork)
+                if (!viable.empty()) {
+                    c = viable[0];
+                    continue;
+                }
+                // żadna nie prowadzi do E - fallback na pierwszego sąsiada
+                c = nxt[0];
+                continue;
+            }
+
+            c = nxt[0];
+        }
+
+        std::vector<sf::Vector2f> out;
+        for (auto& p : result) out.push_back(toWorld(p));
+        return out;
+    };
+
+    pathPointsA = buildPath(0);
+    pathPointsB = buildPath(1);
+
+    // --- Decorations ---
     decorations.clear();
 
     for (int y = 0; y < rows; ++y) {
@@ -173,7 +286,7 @@ void Map::draw(sf::RenderWindow& window) const {
     for (int y = 0; y < rows; ++y) {
         for (int x = 0; x < (int)grid[y].size(); ++x) {
             char cell = grid[y][x];
-            bool isPath = (cell == '#' || cell == 'S' || cell == 'E' || cell == 'M');
+            bool isPath = (cell == '#' || cell == 'S' || cell == 'E' || cell == 'M' || cell == 'D');
             if (!isPath) continue;
 
             sf::Sprite tile;

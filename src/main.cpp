@@ -110,7 +110,7 @@ int main() {
                 }
             }
             if (event.type == sf::Event::TextEntered && state == MenuState::NewGameName) {
-                if (event.text.unicode == '\b') {6
+                if (event.text.unicode == '\b') {
                     if (!inputText.empty()) inputText.pop_back();
                 } else if (event.text.unicode == '\r' || event.text.unicode == '\n') {
                     if (!inputText.empty()) {

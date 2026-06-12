@@ -4,10 +4,12 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <string>
+#include <cstdlib>
 
 class Map {
 private:
-    std::vector<sf::Vector2f> pathPoints;
+    std::vector<sf::Vector2f> pathPointsA;
+    std::vector<sf::Vector2f> pathPointsB;
     std::vector<sf::Vector2f> towerSpots;
     std::vector<sf::Vector2f> bridgeSpots;
     std::vector<sf::Vector2f> storeSpots;
@@ -39,7 +41,17 @@ public:
 
     void draw(sf::RenderWindow& window) const;
 
-    const std::vector<sf::Vector2f>& getPathPoints() const { return pathPoints; }
+    // Stara nazwa - zachowana dla kompatybilności, zwraca ścieżkę A
+    const std::vector<sf::Vector2f>& getPathPoints() const { return pathPointsA; }
+
+    const std::vector<sf::Vector2f>& getPathA() const { return pathPointsA; }
+    const std::vector<sf::Vector2f>& getPathB() const { return pathPointsB; }
+
+    // Losuje jedną z dwóch ścieżek (jeśli mapa nie ma rozwidlenia, A == B)
+    const std::vector<sf::Vector2f>& getRandomPath() const {
+        return (rand() % 2 == 0) ? pathPointsA : pathPointsB;
+    }
+
     const std::vector<sf::Vector2f>& getTowerSpots() const { return towerSpots; }
     const std::vector<sf::Vector2f>& getBridgeSpots() const { return bridgeSpots; }
     const std::vector<sf::Vector2f>& getStoreSpots() const { return storeSpots; }
