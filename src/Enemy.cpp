@@ -1,7 +1,7 @@
 #include "Enemy.h"
 #include <cmath>
 
-Enemy::Enemy(sf::Vector2f startPos, const EnemyStats& stats, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU) : currentTargetIndex(1), speed(stats.speed), texD(tD), texS(tS), texU(tU), animFrame(0), animTime(0.f), hp(stats.maxHp), maxHp(stats.maxHp), castleDamage(stats.castleDamage), playerDamage(stats.playerDamage) {
+Enemy::Enemy(sf::Vector2f startPos, const EnemyStats& stats, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU, const std::vector<sf::Vector2f>* p) : currentTargetIndex(1), speed(stats.speed), texD(tD), texS(tS), texU(tU), animFrame(0), animTime(0.f), hp(stats.maxHp), maxHp(stats.maxHp), castleDamage(stats.castleDamage), playerDamage(stats.playerDamage), path(p), m_hasPassedPlayer(false) {
     if (texD) {
         shape.setTexture(*texD);
         shape.setTextureRect(sf::IntRect(0, 0, 48, 48));
@@ -10,9 +10,9 @@ Enemy::Enemy(sf::Vector2f startPos, const EnemyStats& stats, const sf::Texture* 
     shape.setPosition(startPos);
 }
 
-void Enemy::update(float dt, const std::vector<sf::Vector2f>& pathPoints) {
-    if (currentTargetIndex < pathPoints.size()) {
-        sf::Vector2f target = pathPoints[currentTargetIndex];
+void Enemy::update(float dt) {
+    if (path && currentTargetIndex < path->size()) {
+        sf::Vector2f target = (*path)[currentTargetIndex];
         sf::Vector2f current = shape.getPosition();
         sf::Vector2f dir = target - current;
         float dist = std::sqrt(dir.x * dir.x + dir.y * dir.y);
@@ -42,12 +42,17 @@ void Enemy::update(float dt, const std::vector<sf::Vector2f>& pathPoints) {
             }
         }
 
-        if (dist <= speed * dt) {
+        if (slowTimer > 0.f) {
+            slowTimer -= dt;
+        }
+        float currentSpeed = (slowTimer > 0.f) ? speed * 0.3f : speed;
+
+        if (dist <= currentSpeed * dt) {
             shape.setPosition(target);
             currentTargetIndex++;
         } else {
             dir /= dist;
-            shape.move(dir * speed * dt);
+            shape.move(dir * currentSpeed * dt);
         }
     }
 }
@@ -79,6 +84,7 @@ bool Enemy::isDead() const {
     return hp <= 0;
 }
 
-bool Enemy::hasReachedEnd(size_t pathSize) const {
-    return currentTargetIndex >= pathSize;
+bool Enemy::hasReachedEnd() const {
+    if (!path) return false;
+    return currentTargetIndex >= path->size();
 }

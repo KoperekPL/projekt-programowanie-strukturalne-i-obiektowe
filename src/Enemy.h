@@ -3,6 +3,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <vector>
+#include "GameObject.h"
 
 struct EnemyStats {
     int maxHp = 25;
@@ -11,7 +12,7 @@ struct EnemyStats {
     int playerDamage = 1;
 };
 
-class Enemy {
+class Enemy : public GameObject {
 protected:
     sf::Sprite shape;
     const sf::Texture* texD;
@@ -25,22 +26,28 @@ protected:
     int maxHp;
     int castleDamage;
     int playerDamage;
+    const std::vector<sf::Vector2f>* path;
+    bool m_hasPassedPlayer;
 
 public:
-    Enemy(sf::Vector2f startPos, const EnemyStats& stats, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU);
+    float slowTimer = 0.f;
+
+    Enemy(sf::Vector2f startPos, const EnemyStats& stats, const sf::Texture* tD, const sf::Texture* tS, const sf::Texture* tU, const std::vector<sf::Vector2f>* path);
     virtual ~Enemy() = default;
 
-    virtual void update(float dt, const std::vector<sf::Vector2f>& pathPoints);
-    virtual void draw(sf::RenderWindow& window) const;
+    void update(float dt) override;
+    void draw(sf::RenderWindow& window) const override;
+    sf::Vector2f getPosition() const override { return shape.getPosition(); }
 
-    bool hasReachedEnd(size_t pathSize) const;
-    sf::Vector2f getPosition() const { return shape.getPosition(); }
+    bool hasReachedEnd() const;
     void takeDamage(int damage);
     bool isDead() const;
     
     int getCastleDamage() const { return castleDamage; }
     int getPlayerDamage() const { return playerDamage; }
     void die() { hp = 0; }
+    bool hasPassedPlayer() const { return m_hasPassedPlayer; }
+    void setPassedPlayer(bool val) { m_hasPassedPlayer = val; }
 };
 
 #endif

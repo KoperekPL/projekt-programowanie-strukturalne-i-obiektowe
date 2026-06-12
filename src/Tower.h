@@ -2,13 +2,15 @@
 #define TOWER_H
 #pragma once
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <vector>
 
 enum class TowerType {
     Empty,
     Base,
     Sniper,
-    Multishot
+    Multishot,
+    Healer
 };
 
 enum class TowerState {
@@ -42,12 +44,16 @@ struct TowerStats {
     TimedUpgradeStats timedUpgrade;
 };
 
-struct Tower {
+#include "GameObject.h"
+
+class Tower : public GameObject {
+public:
     sf::Vector2f position;
     TowerType type = TowerType::Empty;
     TowerState state = TowerState::Idle;
     float buildTimer = 0.f;
     float cooldownTimer = 0.f;
+    bool isHealerSpot = false;
     
     int damageUpgradeLevel = 0;
     int speedUpgradeLevel = 0;
@@ -56,7 +62,20 @@ struct Tower {
     bool hasTimedUpgrade = false;
     float timedUpgradeTimer = 0.f;
 
+    sf::Sound buildSound;
+
     mutable int currentTexLevel = 0;
+
+    float currentRotation = 0.f;
+    float targetRotation = 0.f;
+    float rotationSpeed = 180.f;
+
+    Tower(sf::Vector2f pos = {0,0}) : position(pos) {}
+    virtual ~Tower() = default;
+
+    void update(float dt) override;
+    void draw(sf::RenderWindow& window) const override;
+    sf::Vector2f getPosition() const override { return position; }
 };
 
 #endif

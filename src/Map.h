@@ -11,6 +11,7 @@ private:
     std::vector<sf::Vector2f> towerSpots;
     std::vector<sf::Vector2f> bridgeSpots;
     std::vector<sf::Vector2f> storeSpots;
+    std::vector<sf::Vector2f> healerSpots;
     std::vector<std::string> grid;
 
     // terrain tile textures
@@ -39,8 +40,11 @@ public:
     void draw(sf::RenderWindow& window) const;
 
     const std::vector<sf::Vector2f>& getPathPoints() const { return pathPoints; }
-    const std::vector<sf::Vector2f>& getTowerSpots()  const { return towerSpots; }
-    const std::vector<sf::Vector2f>& getStoreSpots()  const { return storeSpots; }
+    const std::vector<sf::Vector2f>& getTowerSpots() const { return towerSpots; }
+    const std::vector<sf::Vector2f>& getBridgeSpots() const { return bridgeSpots; }
+    const std::vector<sf::Vector2f>& getStoreSpots() const { return storeSpots; }
+    const std::vector<sf::Vector2f>& getHealerSpots() const { return healerSpots; }
+    float getTileSize() const { return tileSize; }
 };
 
 #endif

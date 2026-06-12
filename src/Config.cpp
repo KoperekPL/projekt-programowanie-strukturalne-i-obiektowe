@@ -46,10 +46,22 @@ void loadEnemyConfig(const std::string& filepath, std::map<std::string, EnemySta
 }
 
 void loadTowerConfig(const std::string& filepath, std::map<TowerType, TowerStats>& towerConfigs) {
-  towerConfigs[TowerType::Base] = {50, 3.0f, 5, 1.0f, 100.f};
-  towerConfigs[TowerType::Sniper] = {100, 5.0f, 25, 2.5f, 250.f};
-  towerConfigs[TowerType::Multishot] = {120, 4.0f, 8, 0.8f, 120.f};
-  towerConfigs[TowerType::Multishot].baseTargets = 3;
+  TowerStats baseStats;
+  baseStats.cost = 50; baseStats.buildTime = 3.0f; baseStats.damage = 5; baseStats.cooldown = 1.0f; baseStats.range = 100.f;
+  towerConfigs[TowerType::Base] = baseStats;
+
+  TowerStats sniperStats;
+  sniperStats.cost = 100; sniperStats.buildTime = 5.0f; sniperStats.damage = 25; sniperStats.cooldown = 2.5f; sniperStats.range = 250.f;
+  towerConfigs[TowerType::Sniper] = sniperStats;
+
+  TowerStats multiStats;
+  multiStats.cost = 120; multiStats.buildTime = 4.0f; multiStats.damage = 8; multiStats.cooldown = 0.8f; multiStats.range = 120.f;
+  multiStats.baseTargets = 3;
+  towerConfigs[TowerType::Multishot] = multiStats;
+
+  TowerStats healerStats;
+  healerStats.cost = 1000; healerStats.buildTime = 10.0f; healerStats.damage = 0; healerStats.cooldown = 2.0f; healerStats.range = 50.f;
+  towerConfigs[TowerType::Healer] = healerStats;
 
   std::ifstream file(filepath);
   if (!file.is_open()) {
@@ -125,13 +137,13 @@ void loadTowerConfig(const std::string& filepath, std::map<TowerType, TowerStats
             if (key.find("level_") == 0) {
                 currentLevelIndex = std::stoi(key.substr(6)) - 1;
                 if (currentCategory == "upgrade_damage") {
-                    if (towerConfigs[currentType].damageUpgrades.size() <= currentLevelIndex)
+                    if (towerConfigs[currentType].damageUpgrades.size() <= static_cast<size_t>(currentLevelIndex))
                         towerConfigs[currentType].damageUpgrades.resize(currentLevelIndex + 1);
                 } else if (currentCategory == "upgrade_speed") {
-                    if (towerConfigs[currentType].speedUpgrades.size() <= currentLevelIndex)
+                    if (towerConfigs[currentType].speedUpgrades.size() <= static_cast<size_t>(currentLevelIndex))
                         towerConfigs[currentType].speedUpgrades.resize(currentLevelIndex + 1);
                 } else if (currentCategory == "upgrade_targets") {
-                    if (towerConfigs[currentType].targetUpgrades.size() <= currentLevelIndex)
+                    if (towerConfigs[currentType].targetUpgrades.size() <= static_cast<size_t>(currentLevelIndex))
                         towerConfigs[currentType].targetUpgrades.resize(currentLevelIndex + 1);
                 }
             }

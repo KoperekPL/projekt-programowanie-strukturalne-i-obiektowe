@@ -9,7 +9,10 @@ SOURCES += \
     src/Map.cpp \
     src/Game.cpp \
     src/Config.cpp \
-    src/AssetManager.cpp
+    src/AssetManager.cpp \
+    src/Tower.cpp \
+    src/WaveManager.cpp \
+    src/SaveManager.cpp
 
 HEADERS += \
     src/mainwindow.h \
@@ -18,7 +21,8 @@ HEADERS += \
     src/Game.h \
     src/Tower.h \
     src/Config.h \
-    src/AssetManager.h
+    src/AssetManager.h \
+    src/SaveManager.h
 
 FORMS += \
     mainwindow.ui
@@ -33,12 +37,14 @@ CONFIG(debug, debug|release) {
     LIBS += -L$$PWD/sfml/lib \
             -lsfml-graphics-d \
             -lsfml-window-d \
-            -lsfml-system-d
+            -lsfml-system-d \
+            -lsfml-audio-d
 } else {
     LIBS += -L$$PWD/sfml/lib \
             -lsfml-graphics \
             -lsfml-window \
-            -lsfml-system
+            -lsfml-system \
+            -lsfml-audio
 }
 
 QMAKE_POST_LINK += xcopy /Y /E /I \"$$system_path($$PWD/textures)\" \"$$system_path($$OUT_PWD/debug/textures)\" > NUL 2>&1 & xcopy /Y /E /I \"$$system_path($$PWD/textures)\" \"$$system_path($$OUT_PWD/release/textures)\" > NUL 2>&1

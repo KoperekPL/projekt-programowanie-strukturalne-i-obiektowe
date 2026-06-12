@@ -1,3 +1,0 @@
-C:\Qt\Tools\CMake_64\bin\cmake.exe -E rm -f CMakeFiles\MojaGra.dir/objects.a
-C:\Qt\Tools\mingw1310_64\bin\ar.exe qc CMakeFiles\MojaGra.dir/objects.a @CMakeFiles\MojaGra.dir\objects1.rsp
-C:\Qt\Tools\mingw1310_64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\MojaGra.dir/objects.a -Wl,--no-whole-archive -o MojaGra.exe -Wl,--out-implib,libMojaGra.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\MojaGra.dir\linkLibs.rsp

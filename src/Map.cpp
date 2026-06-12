@@ -58,6 +58,8 @@ bool Map::loadFromFile(const std::string& filename) {
                 bridgeSpots.push_back({x * tileSize + tileSize / 2.f, y * tileSize + tileSize / 2.f});
             } else if (cell == 'K') {
                 storeSpots.push_back({x * tileSize + tileSize / 2.f, y * tileSize + tileSize / 2.f});
+            } else if (cell == 'H') {
+                healerSpots.push_back({x * tileSize + tileSize / 2.f, y * tileSize + tileSize / 2.f});
             }
         }
     }

@@ -20,3 +20,27 @@ void AssetManager::loadAllTextures() {
         towerUpgradeTexs[i].loadFromFile("../../../assets/textures/" + std::to_string(i + 1) + "upgrade.png");
     }
 }
+
+void AssetManager::loadAudio() {
+    gunshotBuf.loadFromFile("../../../assets/sound/gunshot.mp3");
+    sniperBuf.loadFromFile("../../../assets/sound/sniper_gunshot.mp3");
+    buildBuf.loadFromFile("../../../assets/sound/build.mp3");
+}
+
+void AssetManager::playSound(bool isSniper, float volume) {
+    if (activeSounds.size() > 20) return;
+    auto sound = std::make_unique<sf::Sound>();
+    sound->setBuffer(isSniper ? sniperBuf : gunshotBuf);
+    sound->setVolume(volume);
+    sound->play();
+    activeSounds.push_back(std::move(sound));
+}
+
+void AssetManager::updateSounds() {
+    activeSounds.erase(
+        std::remove_if(activeSounds.begin(), activeSounds.end(),
+            [](const std::unique_ptr<sf::Sound>& s) { return s->getStatus() == sf::Sound::Stopped; }
+        ),
+        activeSounds.end()
+    );
+}
