@@ -4,7 +4,6 @@ CONFIG += c++17
 
 SOURCES += \
     src/main.cpp \
-    src/mainwindow.cpp \
     src/Enemy.cpp \
     src/Map.cpp \
     src/Game.cpp \
@@ -15,7 +14,6 @@ SOURCES += \
     src/SaveManager.cpp
 
 HEADERS += \
-    src/mainwindow.h \
     src/Enemy.h \
     src/Map.h \
     src/Game.h \
