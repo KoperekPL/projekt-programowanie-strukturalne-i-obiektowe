@@ -3,6 +3,8 @@
 
 void AssetManager::loadAllTextures() {
     playerTexture.loadFromFile("../../../assets/textures/Soldier-Walk.png");
+    attackRightTex.loadFromFile("../../../assets/textures/atakprawo.png");
+    attackLeftTex.loadFromFile("../../../assets/textures/ataklewo.png");
     enemyTexD.loadFromFile("../../../assets/textures/BD_Walk.png");
     enemyTexS.loadFromFile("../../../assets/textures/BS_Walk.png");
     enemyTexU.loadFromFile("../../../assets/textures/BU_Walk.png");

@@ -10,6 +10,8 @@
 class AssetManager {
 public:
     sf::Texture playerTexture;
+    sf::Texture attackRightTex;
+    sf::Texture attackLeftTex;
     sf::Texture enemyTexD;
     sf::Texture enemyTexS;
     sf::Texture enemyTexU;

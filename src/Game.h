@@ -67,6 +67,7 @@ private:
         sf::Vector2f position;
         float angle;
         float lifeTime;
+        bool isRight;
     };
     std::vector<AttackSlash> attackSlashes;
 

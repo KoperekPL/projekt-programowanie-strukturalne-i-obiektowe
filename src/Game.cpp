@@ -266,6 +266,7 @@ void Game::processEvents() {
                           slash.position = player.getPosition();
                           slash.angle = atan2(dy, dx) * 180.f / 3.14159f;
                           slash.lifeTime = 0.2f;
+                          slash.isRight = (dx >= 0.f);
                           attackSlashes.push_back(slash);
                           break; // Only hit nearest one enemy for now
                       }
@@ -995,12 +996,26 @@ void Game::render() {
   }
 
   for (auto& slash : attackSlashes) {
-      sf::RectangleShape rect(sf::Vector2f(60.f, 10.f));
-      rect.setOrigin(30.f, 5.f);
-      rect.setPosition(slash.position);
-      rect.setRotation(slash.angle);
-      rect.setFillColor(sf::Color(255, 255, 255, static_cast<sf::Uint8>(255 * (slash.lifeTime / 0.2f))));
-      window.draw(rect);
+      sf::Sprite sprite;
+      sprite.setTexture(slash.isRight ? assets.attackRightTex : assets.attackLeftTex);
+      
+      int frame = static_cast<int>(((0.2f - slash.lifeTime) / 0.2f) * 6);
+      if (frame < 0) frame = 0;
+      if (frame > 5) frame = 5;
+      
+      sprite.setTextureRect(sf::IntRect(frame * 100, 0, 100, 100));
+      sprite.setOrigin(50.f, 50.f);
+      sprite.setPosition(slash.position);
+      sprite.setScale(1.3f, 1.3f);
+      
+      if (slash.isRight) {
+          sprite.setRotation(slash.angle);
+      } else {
+          sprite.setRotation(slash.angle - 180.f);
+      }
+      
+      sprite.setColor(sf::Color(255, 255, 255, static_cast<sf::Uint8>(255 * (slash.lifeTime / 0.2f))));
+      window.draw(sprite);
   }
 
   for (const auto &obj : gameObjects) {
