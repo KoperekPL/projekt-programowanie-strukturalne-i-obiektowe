@@ -32,7 +32,7 @@ Game::Game(const std::string& name, const std::string& mapPath, bool isNewGame)
   assets.loadAudio();
 
   int randomMusicNum = (rand() % 9) + 1;
-  std::string musicFile = "../../../assets/sound/music" + std::to_string(randomMusicNum) + ".mp3";
+  std::string musicFile = PROJECT_DIR "assets/sound/music" + std::to_string(randomMusicNum) + ".mp3";
   if (bgMusic.openFromFile(musicFile)) {
       bgMusic.setVolume(musicVolume);
       bgMusic.setLoop(true);
@@ -51,8 +51,8 @@ Game::Game(const std::string& name, const std::string& mapPath, bool isNewGame)
   towerAnimTime = 0.f;
   towerAnimFrame = 0;
 
-  Config::loadTowerConfig("../../../config/tower.config", towerConfigs);
-  Config::loadEnemyConfig("../../../config/enemy.config", enemyConfigs);
+  Config::loadTowerConfig(PROJECT_DIR "config/tower.config", towerConfigs);
+  Config::loadEnemyConfig(PROJECT_DIR "config/enemy.config", enemyConfigs);
 
   if (isNewGame) {
       for (const auto &spot : map.getTowerSpots()) {

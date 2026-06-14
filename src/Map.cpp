@@ -9,7 +9,7 @@
 Map::Map(float tSize) : tileSize(tSize), hasBg(false) {}
 
 bool Map::loadFromFile(const std::string& filename) {
-    const std::string base = "../../../assets/textures/";
+    const std::string base = PROJECT_DIR "assets/textures/";
 
     hasBg = true;
     if (!texGrass.loadFromFile(base + "trawa.png"))   { std::cerr << "Brak trawa.png\n";   hasBg = false; }

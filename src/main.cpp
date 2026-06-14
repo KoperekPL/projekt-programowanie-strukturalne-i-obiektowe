@@ -117,8 +117,8 @@ int main() {
                         chosenWorldName = inputText;
                         state = MenuState::NewGameMap;
                         std::vector<std::string> maps;
-                        if (fs::exists("../../../assets/map")) {
-                            for (const auto& entry : fs::directory_iterator("../../../assets/map")) {
+                        if (fs::exists(PROJECT_DIR "assets/map")) {
+                            for (const auto& entry : fs::directory_iterator(PROJECT_DIR "assets/map")) {
                                 if (entry.path().extension() == ".map") {
                                     maps.push_back(entry.path().filename().string());
                                 }
@@ -142,8 +142,8 @@ int main() {
                         if (loadGameBtn.getGlobalBounds().contains(mousePos)) {
                             state = MenuState::LoadGameWorld;
                             std::vector<std::string> worlds;
-                            fs::create_directories("../../../saves"); // Ensure saves folder exists
-                            for (const auto& entry : fs::directory_iterator("../../../saves")) {
+                            fs::create_directories(PROJECT_DIR "saves"); // Ensure saves folder exists
+                            for (const auto& entry : fs::directory_iterator(PROJECT_DIR "saves")) {
                                 if (entry.is_directory()) {
                                     worlds.push_back(entry.path().filename().string());
                                 }
@@ -153,7 +153,7 @@ int main() {
                     } else if (state == MenuState::NewGameMap) {
                         for (auto& btn : dynamicBtns) {
                             if (btn.rect.getGlobalBounds().contains(mousePos)) {
-                                chosenMapPath = "../../../assets/map/" + btn.value;
+                                chosenMapPath = PROJECT_DIR "assets/map/" + btn.value;
                                 isNewGame = true;
                                 startGame = true;
                                 menuWindow.close();
@@ -166,7 +166,7 @@ int main() {
                                 chosenWorldName = btn.value;
                                 state = MenuState::LoadGameFile;
                                 std::vector<std::string> saves;
-                                std::string dir = "../../../saves/" + chosenWorldName;
+                                std::string dir = PROJECT_DIR "saves/" + chosenWorldName;
                                 if (fs::exists(dir)) {
                                     for (const auto& entry : fs::directory_iterator(dir)) {
                                         if (entry.path().extension() == ".save") {
@@ -181,7 +181,7 @@ int main() {
                     } else if (state == MenuState::LoadGameFile) {
                         for (auto& btn : dynamicBtns) {
                             if (btn.rect.getGlobalBounds().contains(mousePos)) {
-                                chosenSaveFile = "../../../saves/" + chosenWorldName + "/" + btn.value;
+                                chosenSaveFile = PROJECT_DIR "saves/" + chosenWorldName + "/" + btn.value;
                                 isNewGame = false;
                                 startGame = true;
                                 menuWindow.close();
@@ -249,7 +249,7 @@ int main() {
 
     if (startGame) {
         if (isNewGame) {
-            std::string savePath = "../../../saves/" + chosenWorldName + "/save.save";
+            std::string savePath = PROJECT_DIR "saves/" + chosenWorldName + "/save.save";
             Game game(savePath, chosenMapPath, true);
             game.run();
         } else {
