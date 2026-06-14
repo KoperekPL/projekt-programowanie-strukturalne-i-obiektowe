@@ -73,7 +73,7 @@ bool SaveManager::loadGame(const std::string& saveFilePath,
     std::string key;
     while (in >> key) {
         if (key == "MAP") {
-            in >> mapPath;
+            std::getline(in >> std::ws, mapPath);
         } else if (key == "PLAYER_HP") {
             in >> playerHp >> maxPlayerHp;
         } else if (key == "BASE_HP") {
